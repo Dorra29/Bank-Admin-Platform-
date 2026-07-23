@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+
+<html>
+
+
+<head>
+
+<title>Manager Dashboard</title>
+
+</head>
+
+
+<body>
+
+
+<h1>Manager Dashboard</h1>
+
+
+<h2>
+Welcome {{request.user.username}}
+</h2>
+
+
+<hr>
+
+
+<h3>Manager Operations</h3>
+
+
+<ul>
+
+<li>
+Approve employee requests
+</li>
+
+
+<li>
+Monitor department activity
+</li>
+
+
+<li>
+Generate reports
+</li>
+
+
+<li>
+Review transactions
+</li>
+
+
+</ul>
+
+
+<form action="/logout/" method="post">
+    {% csrf_token %}
+    <button type="submit">
+        Logout
+    </button>
+</form>
+
+</body>
+
+
+</html>

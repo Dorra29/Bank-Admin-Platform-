@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+
+
+<html>
+
+
+<head>
+
+<title>Employee Dashboard</title>
+
+</head>
+
+
+<body>
+
+
+<h1>Employee Dashboard</h1>
+
+
+<h2>
+Welcome {{request.user.username}}
+</h2>
+
+
+<hr>
+
+
+<h3>Employee Services</h3>
+
+
+<ul>
+
+<li>
+View profile
+</li>
+
+
+<li>
+Submit requests
+</li>
+
+
+<li>
+Check assigned tasks
+</li>
+
+
+<li>
+View notifications
+</li>
+
+
+</ul>
+
+
+<form action="/logout/" method="post">
+    {% csrf_token %}
+    <button type="submit">
+        Logout
+    </button>
+</form>
+
+</body>
+
+
+</html>
