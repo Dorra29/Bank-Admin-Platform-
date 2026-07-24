@@ -130,13 +130,14 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 LDAP_SERVER = "192.168.56.10"
 LDAP_PORT = 389
+LDAP_SSL_PORT = 636          # NEW — required for password writes (unicodePwd)
 
 LDAP_BASE_DN = "DC=bank,DC=local"
 
 LDAP_USER_SEARCH_BASE = "DC=bank,DC=local"
 
 LDAP_BIND_DN = "CN=Administrator,CN=Users,DC=bank,DC=local"
-LDAP_BIND_PASSWORD = "ITlab123"
+LDAP_BIND_PASSWORD = "ITlab123"  # TODO before submission: move to an env var, don't commit this
 
 AUTHENTICATION_BACKENDS = [
     "accounts.backends.ActiveDirectoryBackend",

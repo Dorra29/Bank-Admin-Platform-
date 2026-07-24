@@ -16,5 +16,10 @@ urlpatterns = [
         name="create_user"
     ),
 
+    path(
+        "manage-user/",
+        views.manage_user,
+        name="manage_user"
+    ),
 
 ]

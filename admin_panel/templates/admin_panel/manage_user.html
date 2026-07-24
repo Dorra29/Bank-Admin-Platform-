@@ -1,0 +1,54 @@
+<h1>
+Manage AD User
+</h1>
+
+
+{% if message %}
+
+<p style="color: {% if success %}green{% else %}red{% endif %};">
+{{message}}
+</p>
+
+{% endif %}
+
+
+
+<form method="POST">
+
+{% csrf_token %}
+
+
+<input
+name="username"
+placeholder="Username">
+
+
+<select name="action" id="action" onchange="togglePasswordField()">
+    <option value="enable">Enable</option>
+    <option value="disable">Disable</option>
+    <option value="unlock">Unlock</option>
+    <option value="reset_password">Reset Password</option>
+</select>
+
+<div id="password-field" style="display:none;">
+    <input
+    type="password"
+    name="new_password"
+    placeholder="New password">
+</div>
+
+
+<button>
+Submit
+</button>
+
+
+</form>
+
+<script>
+function togglePasswordField() {
+    const action = document.getElementById("action").value;
+    document.getElementById("password-field").style.display =
+        action === "reset_password" ? "block" : "none";
+}
+</script>
