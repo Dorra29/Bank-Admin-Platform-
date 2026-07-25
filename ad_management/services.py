@@ -34,6 +34,24 @@ def find_user_dn(conn, username):
     return conn.entries[0].entry_dn
 
 
+def _is_account_disabled(entry):
+    if "userAccountControl" not in entry or not entry.userAccountControl.raw_values:
+        return False
+    try:
+        return int(entry.userAccountControl.raw_values[0]) & 2 == 2
+    except (ValueError, TypeError):
+        return False
+
+
+def _is_account_locked(entry):
+    if "lockoutTime" not in entry or not entry.lockoutTime.raw_values:
+        return False
+    try:
+        return int(entry.lockoutTime.raw_values[0]) != 0
+    except (ValueError, TypeError):
+        return False
+
+
 def create_ad_user(first_name, last_name, username, password, ou):
     try:
         conn = get_connection()
@@ -53,6 +71,12 @@ def create_ad_user(first_name, last_name, username, password, ou):
             return {"success": False, "message": conn.result}
 
         if not conn.extend.microsoft.modify_password(user_dn, password):
+            if conn.result.get("description") == "unwillingToPerform":
+                return {
+                    "success": False,
+                    "message": "Password rejected by AD — it likely doesn't meet the domain's "
+                                "complexity policy (min 7 chars, 3 of: upper/lower/digit/symbol).",
+                }
             return {"success": False, "message": conn.result}
 
         # 512 = NORMAL_ACCOUNT, enabled
@@ -104,6 +128,12 @@ def reset_ad_password(username, new_password):
         # No old_password → administrative reset (requires the bind
         # account to have Reset Password permission, which Administrator has).
         if not conn.extend.microsoft.modify_password(user_dn, new_password):
+            if conn.result.get("description") == "unwillingToPerform":
+                return {
+                    "success": False,
+                    "message": "Password rejected by AD — it likely doesn't meet the domain's "
+                                "complexity policy (min 7 chars, 3 of: upper/lower/digit/symbol).",
+                }
             return {"success": False, "message": conn.result}
         return {"success": True, "message": f"Password reset for {username}."}
     except Exception as e:
@@ -135,22 +165,6 @@ def get_admin_dashboard_stats():
             "employees": {"total": 0, "enabled": 0, "disabled": 0, "locked": 0},
         }
 
-        def _is_disabled(entry):
-            if "userAccountControl" not in entry or not entry.userAccountControl.raw_values:
-                return False
-            try:
-                return int(entry.userAccountControl.raw_values[0]) & 2 == 2
-            except (ValueError, TypeError):
-                return False
-
-        def _is_locked(entry):
-            if "lockoutTime" not in entry or not entry.lockoutTime.raw_values:
-                return False
-            try:
-                return int(entry.lockoutTime.raw_values[0]) != 0
-            except (ValueError, TypeError):
-                return False
-
         # OU=Admins — every account here is an admin
         conn.search(
             search_base=f"OU=Admins,{settings.LDAP_BASE_DN}",
@@ -159,8 +173,8 @@ def get_admin_dashboard_stats():
         )
         for entry in conn.entries:
             stats["admins"]["total"] += 1
-            stats["admins"]["disabled" if _is_disabled(entry) else "enabled"] += 1
-            if _is_locked(entry):
+            stats["admins"]["disabled" if _is_account_disabled(entry) else "enabled"] += 1
+            if _is_account_locked(entry):
                 stats["admins"]["locked"] += 1
 
         # OU=Employees — holds both GG_Employees and GG_Managers members
@@ -174,8 +188,8 @@ def get_admin_dashboard_stats():
             bucket = "managers" if any("GG_Managers" in g for g in member_of) else "employees"
 
             stats[bucket]["total"] += 1
-            stats[bucket]["disabled" if _is_disabled(entry) else "enabled"] += 1
-            if _is_locked(entry):
+            stats[bucket]["disabled" if _is_account_disabled(entry) else "enabled"] += 1
+            if _is_account_locked(entry):
                 stats[bucket]["locked"] += 1
 
         stats["total_users"] = sum(s["total"] for s in [stats["admins"], stats["managers"], stats["employees"]])
@@ -183,5 +197,67 @@ def get_admin_dashboard_stats():
         stats["total_locked"] = sum(s["locked"] for s in [stats["admins"], stats["managers"], stats["employees"]])
 
         return stats
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def get_employee_list():
+    """Read-only list of AD accounts under OU=Employees (both managers and employees)."""
+    try:
+        conn = get_connection()
+        conn.search(
+            search_base=f"OU=Employees,{settings.LDAP_BASE_DN}",
+            search_filter="(&(objectClass=user)(objectCategory=person))",
+            attributes=["sAMAccountName", "givenName", "sn", "mail",
+                        "userAccountControl", "lockoutTime", "memberOf"],
+        )
+
+        results = []
+        for entry in conn.entries:
+            member_of = entry.memberOf.values if "memberOf" in entry else []
+            role = "Manager" if any("GG_Managers" in g for g in member_of) else "Employee"
+
+            results.append({
+                "username": str(entry.sAMAccountName) if "sAMAccountName" in entry else "",
+                "first_name": str(entry.givenName) if "givenName" in entry else "",
+                "last_name": str(entry.sn) if "sn" in entry else "",
+                "email": str(entry.mail) if "mail" in entry else "",
+                "role": role,
+                "enabled": not _is_account_disabled(entry),
+                "locked": _is_account_locked(entry),
+            })
+
+        results.sort(key=lambda r: (r["role"], r["username"]))
+        return results
+
+    except Exception:
+        return []
+
+
+def get_ad_user_profile(username):
+    """Read-only profile lookup used by the employee's own dashboard."""
+    try:
+        conn = get_connection()
+        conn.search(
+            search_base=settings.LDAP_BASE_DN,
+            search_filter=f"(sAMAccountName={username})",
+            attributes=["sAMAccountName", "givenName", "sn", "mail", "memberOf",
+                        "userAccountControl", "lockoutTime"],
+        )
+        if not conn.entries:
+            return None
+
+        entry = conn.entries[0]
+        groups = entry.memberOf.values if "memberOf" in entry else []
+
+        return {
+            "username": str(entry.sAMAccountName) if "sAMAccountName" in entry else username,
+            "first_name": str(entry.givenName) if "givenName" in entry else "",
+            "last_name": str(entry.sn) if "sn" in entry else "",
+            "email": str(entry.mail) if "mail" in entry else "",
+            "groups": [g.split(",")[0].replace("CN=", "") for g in groups],
+            "enabled": not _is_account_disabled(entry),
+            "locked": _is_account_locked(entry),
+        }
     except Exception as e:
         return {"error": str(e)}

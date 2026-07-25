@@ -8,6 +8,7 @@ from ad_management.services import (
     disable_ad_user,
     reset_ad_password,
     unlock_ad_user,
+    get_admin_dashboard_stats,
 )
 
 
@@ -15,9 +16,12 @@ from ad_management.services import (
 @role_required("GG_Admins")
 def admin_dashboard(request):
 
+    stats = get_admin_dashboard_stats()
+
     return render(
         request,
-        "admin_dashboard.html"
+        "admin_dashboard.html",
+        {"stats": stats}
     )
 
 
@@ -95,18 +99,3 @@ def manage_user(request):
         request,
         "admin_panel/manage_user.html"
     )
-
-from ad_management.services import (
-    create_ad_user,
-    enable_ad_user,
-    disable_ad_user,
-    reset_ad_password,
-    unlock_ad_user,
-    get_admin_dashboard_stats,   # NEW
-)
-
-@login_required
-@role_required("GG_Admins")
-def admin_dashboard(request):
-    stats = get_admin_dashboard_stats()
-    return render(request, "admin_dashboard.html", {"stats": stats})

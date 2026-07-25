@@ -10,4 +10,10 @@ urlpatterns = [
         name="manager_dashboard"
     ),
 
+    path(
+        "leave-requests/<int:request_id>/review/",
+        views.review_leave_request,
+        name="review_leave_request"
+    ),
+
 ]

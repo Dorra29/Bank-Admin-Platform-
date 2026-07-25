@@ -1,66 +1,57 @@
 <!DOCTYPE html>
-
-
 <html>
-
-
 <head>
-
 <title>Employee Dashboard</title>
-
+<style>
+  body { font-family: Arial, sans-serif; margin: 40px; color: #1a1a1a; }
+  .card { border: 1px solid #ddd; border-radius: 8px; padding: 20px; max-width: 420px; }
+  .card dl { margin: 0; }
+  .card dt { font-weight: bold; color: #666; font-size: 13px; text-transform: uppercase; margin-top: 12px; }
+  .card dd { margin: 2px 0 0 0; font-size: 16px; }
+  .badge { padding: 2px 8px; border-radius: 10px; font-size: 12px; }
+  .badge.ok { background: #dcfce7; color: #166534; }
+  .badge.bad { background: #fee2e2; color: #991b1b; }
+</style>
 </head>
-
-
 <body>
 
-
 <h1>Employee Dashboard</h1>
-
-
-<h2>
-Welcome {{request.user.username}}
-</h2>
-
-
+<h2>Welcome {{ request.user.username }}</h2>
 <hr>
 
+{% if profile.error %}
+  <p style="color:red;">Couldn't load your profile: {{ profile.error }}</p>
+{% elif profile %}
+  <div class="card">
+    <dl>
+      <dt>Full Name</dt>
+      <dd>{{ profile.first_name }} {{ profile.last_name }}</dd>
 
-<h3>Employee Services</h3>
+      <dt>Username</dt>
+      <dd>{{ profile.username }}</dd>
 
+      <dt>Email</dt>
+      <dd>{{ profile.email|default:"—" }}</dd>
 
-<ul>
+      <dt>Groups</dt>
+      <dd>{{ profile.groups|join:", " }}</dd>
 
-<li>
-View profile
-</li>
+      <dt>Account Status</dt>
+      <dd>
+        {% if profile.enabled %}<span class="badge ok">Enabled</span>{% else %}<span class="badge bad">Disabled</span>{% endif %}
+        {% if profile.locked %}<span class="badge bad">Locked</span>{% endif %}
+      </dd>
+    </dl>
+  </div>
+{% else %}
+  <p>Profile not found in Active Directory.</p>
+{% endif %}
 
-
-<li>
-Submit requests
-</li>
-
-
-<li>
-Check assigned tasks
-</li>
-
-
-<li>
-View notifications
-</li>
-
-
-</ul>
-
-
+<hr>
 <form action="/logout/" method="post">
     {% csrf_token %}
-    <button type="submit">
-        Logout
-    </button>
+    <button type="submit">Logout</button>
 </form>
 
 </body>
-
-
 </html>
