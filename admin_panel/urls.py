@@ -22,4 +22,10 @@ urlpatterns = [
         name="manage_user"
     ),
 
+    path(
+        "users/",
+        views.list_users,
+        name="list_users"
+    ),
+
 ]

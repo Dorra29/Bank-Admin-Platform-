@@ -12,22 +12,39 @@ Manage AD User
 {% endif %}
 
 
+{% if user_detail and not user_detail.error %}
+<div style="border:1px solid #ddd; border-radius:8px; padding:12px 16px; max-width:420px; margin-bottom:16px;">
+  <strong>{{ user_detail.first_name }} {{ user_detail.last_name }}</strong> ({{ user_detail.username }})<br>
+  Email: {{ user_detail.email|default:"—" }}<br>
+  OU: {{ user_detail.ou|default:"—" }}<br>
+  Groups: {{ user_detail.groups|join:", "|default:"—" }}<br>
+  Status:
+  {% if user_detail.enabled %}<span style="color:green;">Enabled</span>{% else %}<span style="color:red;">Disabled</span>{% endif %}
+  {% if user_detail.locked %} / <span style="color:red;">Locked</span>{% endif %}
+</div>
+{% endif %}
 
-<form method="POST">
+
+<form method="POST" onsubmit="return confirmIfDelete();">
 
 {% csrf_token %}
 
 
 <input
 name="username"
-placeholder="Username">
+placeholder="Username"
+value="{{ prefill_username|default:'' }}">
 
 
-<select name="action" id="action" onchange="togglePasswordField()">
+<select name="action" id="action" onchange="toggleExtraFields()">
     <option value="enable">Enable</option>
     <option value="disable">Disable</option>
     <option value="unlock">Unlock</option>
     <option value="reset_password">Reset Password</option>
+    <option value="add_group">Add to Group</option>
+    <option value="remove_group">Remove from Group</option>
+    <option value="move_ou">Move to OU</option>
+    <option value="delete">Delete User</option>
 </select>
 
 <div id="password-field" style="display:none;">
@@ -35,6 +52,21 @@ placeholder="Username">
     type="password"
     name="new_password"
     placeholder="New password">
+</div>
+
+<div id="group-field" style="display:none;">
+    <select name="group_name">
+        <option value="GG_Admins">GG_Admins</option>
+        <option value="GG_Managers">GG_Managers</option>
+        <option value="GG_Employees">GG_Employees</option>
+    </select>
+</div>
+
+<div id="ou-field" style="display:none;">
+    <select name="target_ou">
+        <option value="Admins">Admins</option>
+        <option value="Employees">Employees</option>
+    </select>
 </div>
 
 
@@ -45,10 +77,21 @@ Submit
 
 </form>
 
+<p><a href="/admin-panel/users/">Back to user list</a></p>
+
 <script>
-function togglePasswordField() {
+function toggleExtraFields() {
     const action = document.getElementById("action").value;
-    document.getElementById("password-field").style.display =
-        action === "reset_password" ? "block" : "none";
+    document.getElementById("password-field").style.display = action === "reset_password" ? "block" : "none";
+    document.getElementById("group-field").style.display = (action === "add_group" || action === "remove_group") ? "block" : "none";
+    document.getElementById("ou-field").style.display = action === "move_ou" ? "block" : "none";
+}
+
+function confirmIfDelete() {
+    const action = document.getElementById("action").value;
+    if (action === "delete") {
+        return confirm("Delete this AD user permanently? This cannot be undone.");
+    }
+    return true;
 }
 </script>

@@ -1,202 +1,395 @@
-"""
-Reusable Active Directory service layer.
-
-Every view (admin_panel, manager_panel, employee_panel) that needs to talk
-to AD should go through LDAPService instead of calling ldap3 directly.
-That keeps connection handling, error messages, and AD-specific quirks
-(password rules, userAccountControl flags, OU placement) in one place
-instead of duplicated across views.
-"""
 import ssl
-from contextlib import contextmanager
-
+from ldap3 import Server, Connection, ALL, Tls, MODIFY_REPLACE
 from django.conf import settings
-from ldap3 import (
-    Server, Connection, Tls, ALL, SUBTREE,
-    MODIFY_REPLACE, MODIFY_ADD, MODIFY_DELETE,
-)
-from ldap3.core.exceptions import LDAPException
-
-UAC_ACCOUNTDISABLE = 2
-UAC_NORMAL_ACCOUNT = 512
-UAC_DONT_EXPIRE_PASSWORD = 65536
 
 
-class LDAPServiceError(Exception):
-    """Raised for any AD/LDAP failure. Message is safe to show in the UI."""
-    pass
+def get_connection():
+    """Single LDAPS connection used for every write operation.
+    Plain LDAP:389 is fine for reads, but AD refuses unicodePwd changes
+    over an unencrypted channel — so we standardize on SSL here."""
+    tls_config = Tls(validate=ssl.CERT_NONE)  # lab self-signed cert
+    server = Server(
+        settings.LDAP_SERVER,
+        port=settings.LDAP_SSL_PORT,
+        use_ssl=True,
+        tls=tls_config,
+        get_info=ALL,
+    )
+    return Connection(
+        server,
+        user=settings.LDAP_BIND_DN,
+        password=settings.LDAP_BIND_PASSWORD,
+        auto_bind=True,
+    )
 
 
-class LDAPService:
-    def __init__(self):
-        self.base_dn = settings.LDAP_BASE_DN
+def find_user_dn(conn, username):
+    conn.search(
+        search_base=settings.LDAP_USER_SEARCH_BASE,
+        search_filter=f"(sAMAccountName={username})",
+        attributes=["distinguishedName"],
+    )
+    if not conn.entries:
+        return None
+    return conn.entries[0].entry_dn
 
-    @contextmanager
-    def _connection(self):
-        try:
-            tls = Tls(validate=ssl.CERT_REQUIRED if settings.LDAP_TLS_VALIDATE else ssl.CERT_NONE)
-            server = Server(
-                settings.LDAP_SERVER_HOST,
-                port=settings.LDAP_SERVER_PORT,
-                use_ssl=settings.LDAP_USE_SSL,
-                tls=tls,
-                get_info=ALL,
-            )
-            conn = Connection(
-                server,
-                user=settings.LDAP_BIND_DN,
-                password=settings.LDAP_BIND_PASSWORD,
-                auto_bind=True,
-            )
-            if settings.LDAP_USE_START_TLS and not settings.LDAP_USE_SSL:
-                conn.start_tls()
-        except LDAPException as exc:
-            raise LDAPServiceError(f"Could not connect to the domain controller: {exc}")
 
-        try:
-            yield conn
-        finally:
-            conn.unbind()
+def _is_account_disabled(entry):
+    if "userAccountControl" not in entry or not entry.userAccountControl.raw_values:
+        return False
+    try:
+        return int(entry.userAccountControl.raw_values[0]) & 2 == 2
+    except (ValueError, TypeError):
+        return False
 
-    # ── Create ────────────────────────────────────────────────────────
-    def create_user(self, *, first_name, last_name, username, password, role):
-        if role not in settings.LDAP_ROLE_OU_MAP:
-            raise LDAPServiceError(f"Unknown role '{role}'.")
 
-        ou_dn = settings.LDAP_ROLE_OU_MAP[role]
-        group_dn = settings.LDAP_ROLE_GROUP_MAP[role]
-        full_name = f"{first_name} {last_name}"
-        user_dn = f"CN={full_name},{ou_dn}"
+def _is_account_locked(entry):
+    if "lockoutTime" not in entry or not entry.lockoutTime.raw_values:
+        return False
+    try:
+        return int(entry.lockoutTime.raw_values[0]) != 0
+    except (ValueError, TypeError):
+        return False
 
-        with self._connection() as conn:
-            # 1. Create the object, disabled, no password yet.
-            if not conn.add(user_dn, attributes={
-                'objectClass': ['top', 'person', 'organizationalPerson', 'user'],
-                'cn': full_name,
-                'givenName': first_name,
-                'sn': last_name,
-                'displayName': full_name,
-                'sAMAccountName': username,
-                'userPrincipalName': f"{username}@{settings.LDAP_DOMAIN}",
-                'userAccountControl': UAC_NORMAL_ACCOUNT | UAC_ACCOUNTDISABLE,  # 514
-            }):
-                raise LDAPServiceError(self._describe(conn, "create the AD object"))
 
-            # 2. Set the password. Requires the encrypted connection.
-            if not conn.extend.microsoft.modify_password(user_dn, password):
-                conn.delete(user_dn)  # don't leave a broken half-created account behind
-                raise LDAPServiceError(self._describe(conn, "set the password"))
+def create_ad_user(first_name, last_name, username, password, ou):
+    try:
+        conn = get_connection()
 
-            # 3. Enable the account, stop AD forcing a password change at
-            #    first logon, and add to the role's security group.
-            if not conn.modify(user_dn, {
-                'userAccountControl': [(MODIFY_REPLACE, [UAC_NORMAL_ACCOUNT | UAC_DONT_EXPIRE_PASSWORD])],
-                'pwdLastSet': [(MODIFY_REPLACE, [-1])],
-            }):
-                raise LDAPServiceError(self._describe(conn, "enable the account"))
+        user_dn = f"CN={first_name} {last_name},OU={ou},{settings.LDAP_BASE_DN}"
 
-            if not conn.modify(group_dn, {'member': [(MODIFY_ADD, [user_dn])]}):
-                raise LDAPServiceError(self._describe(conn, "add the user to their group"))
-
-        return user_dn
-
-    # ── Enable / disable / unlock ───────────────────────────────────────
-    def _get_uac(self, conn, user_dn):
-        conn.search(user_dn, '(objectClass=user)', attributes=['userAccountControl'])
-        if not conn.entries:
-            raise LDAPServiceError("User not found.")
-        return int(conn.entries[0].userAccountControl.value)
-
-    def disable_user(self, user_dn):
-        with self._connection() as conn:
-            uac = self._get_uac(conn, user_dn)
-            if not conn.modify(user_dn, {'userAccountControl': [(MODIFY_REPLACE, [uac | UAC_ACCOUNTDISABLE])]}):
-                raise LDAPServiceError(self._describe(conn, "disable the account"))
-
-    def enable_user(self, user_dn):
-        with self._connection() as conn:
-            uac = self._get_uac(conn, user_dn)
-            if not conn.modify(user_dn, {'userAccountControl': [(MODIFY_REPLACE, [uac & ~UAC_ACCOUNTDISABLE])]}):
-                raise LDAPServiceError(self._describe(conn, "enable the account"))
-
-    def unlock_user(self, user_dn):
-        with self._connection() as conn:
-            if not conn.modify(user_dn, {'lockoutTime': [(MODIFY_REPLACE, [0])]}):
-                raise LDAPServiceError(self._describe(conn, "unlock the account"))
-
-    # ── Password / delete / move / groups ───────────────────────────────
-    def reset_password(self, user_dn, new_password, force_change_at_logon=False):
-        with self._connection() as conn:
-            if not conn.extend.microsoft.modify_password(user_dn, new_password):
-                raise LDAPServiceError(self._describe(conn, "reset the password"))
-            conn.modify(user_dn, {'pwdLastSet': [(MODIFY_REPLACE, [0 if force_change_at_logon else -1])]})
-
-    def delete_user(self, user_dn):
-        with self._connection() as conn:
-            if not conn.delete(user_dn):
-                raise LDAPServiceError(self._describe(conn, "delete the account"))
-
-    def move_user(self, user_dn, new_role):
-        if new_role not in settings.LDAP_ROLE_OU_MAP:
-            raise LDAPServiceError(f"Unknown role '{new_role}'.")
-        rdn = user_dn.split(',', 1)[0]
-        new_ou = settings.LDAP_ROLE_OU_MAP[new_role]
-        with self._connection() as conn:
-            if not conn.modify_dn(user_dn, rdn, new_superior=new_ou):
-                raise LDAPServiceError(self._describe(conn, "move the account"))
-        return f"{rdn},{new_ou}"
-
-    def add_to_group(self, user_dn, group_dn):
-        with self._connection() as conn:
-            if not conn.modify(group_dn, {'member': [(MODIFY_ADD, [user_dn])]}):
-                raise LDAPServiceError(self._describe(conn, "add the user to the group"))
-
-    def remove_from_group(self, user_dn, group_dn):
-        with self._connection() as conn:
-            if not conn.modify(group_dn, {'member': [(MODIFY_DELETE, [user_dn])]}):
-                raise LDAPServiceError(self._describe(conn, "remove the user from the group"))
-
-    # ── Read ──────────────────────────────────────────────────────────
-    def search_users(self, query=''):
-        base_filter = '(&(objectClass=user)(objectCategory=person))'
-        if query:
-            base_filter = (
-                f'(&(objectClass=user)(objectCategory=person)'
-                f'(|(cn=*{query}*)(sAMAccountName=*{query}*)(mail=*{query}*)))'
-            )
-
-        with self._connection() as conn:
-            conn.search(
-                self.base_dn, base_filter, search_scope=SUBTREE,
-                attributes=['cn', 'sAMAccountName', 'mail', 'userAccountControl',
-                            'memberOf', 'distinguishedName', 'lockoutTime'],
-            )
-            results = []
-            for e in conn.entries:
-                uac = int(e.userAccountControl.value)
-                results.append({
-                    'dn': str(e.distinguishedName),
-                    'name': str(e.cn),
-                    'username': str(e.sAMAccountName),
-                    'email': str(e.mail) if e.mail else '',
-                    'enabled': not (uac & UAC_ACCOUNTDISABLE),
-                    'locked': bool(e.lockoutTime and int(e.lockoutTime.value or 0) != 0),
-                    'groups': [g.split(',')[0].replace('CN=', '') for g in e.memberOf] if e.memberOf else [],
-                })
-            return results
-
-    def dashboard_stats(self):
-        users = self.search_users()
-        return {
-            'total': len(users),
-            'enabled': sum(1 for u in users if u['enabled']),
-            'disabled': sum(1 for u in users if not u['enabled']),
-            'locked': sum(1 for u in users if u['locked']),
-            'admins': sum(1 for u in users if 'GG_Admins' in u['groups']),
-            'managers': sum(1 for u in users if 'GG_Managers' in u['groups']),
-            'employees': sum(1 for u in users if 'GG_Employees' in u['groups']),
+        attributes = {
+            "givenName": first_name,
+            "sn": last_name,
+            "displayName": f"{first_name} {last_name}",
+            "sAMAccountName": username,
+            "userPrincipalName": f"{username}@bank.local",
+            "objectClass": ["top", "person", "organizationalPerson", "user"],
         }
 
-    @staticmethod
-    def _describe(conn, action):
-        return f"AD refused to {action}: {conn.result.get('description')} — {conn.result.get('message')}"
+        if not conn.add(dn=user_dn, attributes=attributes):
+            return {"success": False, "message": conn.result}
+
+        if not conn.extend.microsoft.modify_password(user_dn, password):
+            if conn.result.get("description") == "unwillingToPerform":
+                return {
+                    "success": False,
+                    "message": "Password rejected by AD — it likely doesn't meet the domain's "
+                                "complexity policy (min 7 chars, 3 of: upper/lower/digit/symbol).",
+                }
+            return {"success": False, "message": conn.result}
+
+        # 512 = NORMAL_ACCOUNT, enabled
+        if not conn.modify(user_dn, {"userAccountControl": [(MODIFY_REPLACE, [512])]}):
+            return {"success": False, "message": conn.result}
+
+        return {"success": True, "message": "User created and enabled successfully."}
+
+    except Exception as e:
+        return {"success": False, "message": str(e)}
+
+
+def enable_ad_user(username):
+    try:
+        conn = get_connection()
+        user_dn = find_user_dn(conn, username)
+        if not user_dn:
+            return {"success": False, "message": "User not found."}
+
+        if not conn.modify(user_dn, {"userAccountControl": [(MODIFY_REPLACE, [512])]}):
+            return {"success": False, "message": conn.result}
+        return {"success": True, "message": f"{username} enabled."}
+    except Exception as e:
+        return {"success": False, "message": str(e)}
+
+
+def disable_ad_user(username):
+    try:
+        conn = get_connection()
+        user_dn = find_user_dn(conn, username)
+        if not user_dn:
+            return {"success": False, "message": "User not found."}
+
+        # 514 = NORMAL_ACCOUNT + ACCOUNTDISABLE
+        if not conn.modify(user_dn, {"userAccountControl": [(MODIFY_REPLACE, [514])]}):
+            return {"success": False, "message": conn.result}
+        return {"success": True, "message": f"{username} disabled."}
+    except Exception as e:
+        return {"success": False, "message": str(e)}
+
+
+def reset_ad_password(username, new_password):
+    try:
+        conn = get_connection()
+        user_dn = find_user_dn(conn, username)
+        if not user_dn:
+            return {"success": False, "message": "User not found."}
+
+        # No old_password → administrative reset (requires the bind
+        # account to have Reset Password permission, which Administrator has).
+        if not conn.extend.microsoft.modify_password(user_dn, new_password):
+            if conn.result.get("description") == "unwillingToPerform":
+                return {
+                    "success": False,
+                    "message": "Password rejected by AD — it likely doesn't meet the domain's "
+                                "complexity policy (min 7 chars, 3 of: upper/lower/digit/symbol).",
+                }
+            return {"success": False, "message": conn.result}
+        return {"success": True, "message": f"Password reset for {username}."}
+    except Exception as e:
+        return {"success": False, "message": str(e)}
+
+
+def unlock_ad_user(username):
+    try:
+        conn = get_connection()
+        user_dn = find_user_dn(conn, username)
+        if not user_dn:
+            return {"success": False, "message": "User not found."}
+
+        # lockoutTime = 0 clears the lockout
+        if not conn.modify(user_dn, {"lockoutTime": [(MODIFY_REPLACE, [0])]}):
+            return {"success": False, "message": conn.result}
+        return {"success": True, "message": f"{username} unlocked."}
+    except Exception as e:
+        return {"success": False, "message": str(e)}
+
+
+def get_admin_dashboard_stats():
+    try:
+        conn = get_connection()
+
+        stats = {
+            "admins": {"total": 0, "enabled": 0, "disabled": 0, "locked": 0},
+            "managers": {"total": 0, "enabled": 0, "disabled": 0, "locked": 0},
+            "employees": {"total": 0, "enabled": 0, "disabled": 0, "locked": 0},
+        }
+
+        # OU=Admins — every account here is an admin
+        conn.search(
+            search_base=f"OU=Admins,{settings.LDAP_BASE_DN}",
+            search_filter="(&(objectClass=user)(objectCategory=person))",
+            attributes=["userAccountControl", "lockoutTime"],
+        )
+        for entry in conn.entries:
+            stats["admins"]["total"] += 1
+            stats["admins"]["disabled" if _is_account_disabled(entry) else "enabled"] += 1
+            if _is_account_locked(entry):
+                stats["admins"]["locked"] += 1
+
+        # OU=Employees — holds both GG_Employees and GG_Managers members
+        conn.search(
+            search_base=f"OU=Employees,{settings.LDAP_BASE_DN}",
+            search_filter="(&(objectClass=user)(objectCategory=person))",
+            attributes=["userAccountControl", "lockoutTime", "memberOf"],
+        )
+        for entry in conn.entries:
+            member_of = entry.memberOf.values if "memberOf" in entry else []
+            bucket = "managers" if any("GG_Managers" in g for g in member_of) else "employees"
+
+            stats[bucket]["total"] += 1
+            stats[bucket]["disabled" if _is_account_disabled(entry) else "enabled"] += 1
+            if _is_account_locked(entry):
+                stats[bucket]["locked"] += 1
+
+        stats["total_users"] = sum(s["total"] for s in [stats["admins"], stats["managers"], stats["employees"]])
+        stats["total_disabled"] = sum(s["disabled"] for s in [stats["admins"], stats["managers"], stats["employees"]])
+        stats["total_locked"] = sum(s["locked"] for s in [stats["admins"], stats["managers"], stats["employees"]])
+
+        return stats
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def list_all_ad_users(query=None):
+    """Read-only list of every AD user under OU=Admins and OU=Employees,
+    optionally filtered by a case-insensitive substring match on
+    username, first name, last name, or email."""
+    try:
+        conn = get_connection()
+        results = []
+
+        for ou_name, forced_role in [("Admins", "Admin"), ("Employees", None)]:
+            conn.search(
+                search_base=f"OU={ou_name},{settings.LDAP_BASE_DN}",
+                search_filter="(&(objectClass=user)(objectCategory=person))",
+                attributes=["sAMAccountName", "givenName", "sn", "mail",
+                            "userAccountControl", "lockoutTime", "memberOf"],
+            )
+            for entry in conn.entries:
+                if forced_role:
+                    role = forced_role
+                else:
+                    member_of = entry.memberOf.values if "memberOf" in entry else []
+                    role = "Manager" if any("GG_Managers" in g for g in member_of) else "Employee"
+
+                results.append({
+                    "username": str(entry.sAMAccountName) if "sAMAccountName" in entry else "",
+                    "first_name": str(entry.givenName) if "givenName" in entry else "",
+                    "last_name": str(entry.sn) if "sn" in entry else "",
+                    "email": str(entry.mail) if "mail" in entry else "",
+                    "role": role,
+                    "enabled": not _is_account_disabled(entry),
+                    "locked": _is_account_locked(entry),
+                })
+
+        if query:
+            q = query.lower()
+            results = [
+                r for r in results
+                if q in r["username"].lower()
+                or q in r["first_name"].lower()
+                or q in r["last_name"].lower()
+                or q in r["email"].lower()
+            ]
+
+        results.sort(key=lambda r: (r["role"], r["username"]))
+        return results
+
+    except Exception:
+        return []
+
+
+def get_employee_list():
+    """Read-only list of AD accounts under OU=Employees (both managers and employees)."""
+    return [u for u in list_all_ad_users() if u["role"] in ("Manager", "Employee")]
+
+
+def get_user_detail(username):
+    """Full read-only detail for any AD user — used by the admin manage-user page."""
+    try:
+        conn = get_connection()
+        conn.search(
+            search_base=settings.LDAP_BASE_DN,
+            search_filter=f"(sAMAccountName={username})",
+            attributes=["sAMAccountName", "givenName", "sn", "mail", "memberOf",
+                        "distinguishedName", "userAccountControl", "lockoutTime"],
+        )
+        if not conn.entries:
+            return None
+
+        entry = conn.entries[0]
+        dn = str(entry.distinguishedName) if "distinguishedName" in entry else ""
+        groups = entry.memberOf.values if "memberOf" in entry else []
+        ou = next((part.split("=", 1)[1] for part in dn.split(",") if part.startswith("OU=")), "")
+
+        return {
+            "username": str(entry.sAMAccountName) if "sAMAccountName" in entry else username,
+            "first_name": str(entry.givenName) if "givenName" in entry else "",
+            "last_name": str(entry.sn) if "sn" in entry else "",
+            "email": str(entry.mail) if "mail" in entry else "",
+            "ou": ou,
+            "distinguished_name": dn,
+            "groups": [g.split(",")[0].replace("CN=", "") for g in groups],
+            "enabled": not _is_account_disabled(entry),
+            "locked": _is_account_locked(entry),
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def delete_ad_user(username):
+    try:
+        conn = get_connection()
+        user_dn = find_user_dn(conn, username)
+        if not user_dn:
+            return {"success": False, "message": "User not found."}
+
+        if not conn.delete(user_dn):
+            return {"success": False, "message": conn.result}
+        return {"success": True, "message": f"{username} deleted."}
+    except Exception as e:
+        return {"success": False, "message": str(e)}
+
+
+def move_ad_user(username, new_ou):
+    try:
+        conn = get_connection()
+        user_dn = find_user_dn(conn, username)
+        if not user_dn:
+            return {"success": False, "message": "User not found."}
+
+        rdn = user_dn.split(",")[0]
+        new_superior = f"OU={new_ou},{settings.LDAP_BASE_DN}"
+
+        if not conn.modify_dn(user_dn, rdn, new_superior=new_superior):
+            return {"success": False, "message": conn.result}
+        return {"success": True, "message": f"{username} moved to OU={new_ou}."}
+    except Exception as e:
+        return {"success": False, "message": str(e)}
+
+
+def get_ad_user_profile(username):
+    """Read-only profile lookup used by the employee's own dashboard."""
+    try:
+        conn = get_connection()
+        conn.search(
+            search_base=settings.LDAP_BASE_DN,
+            search_filter=f"(sAMAccountName={username})",
+            attributes=["sAMAccountName", "givenName", "sn", "mail", "memberOf",
+                        "userAccountControl", "lockoutTime"],
+        )
+        if not conn.entries:
+            return None
+
+        entry = conn.entries[0]
+        groups = entry.memberOf.values if "memberOf" in entry else []
+
+        return {
+            "username": str(entry.sAMAccountName) if "sAMAccountName" in entry else username,
+            "first_name": str(entry.givenName) if "givenName" in entry else "",
+            "last_name": str(entry.sn) if "sn" in entry else "",
+            "email": str(entry.mail) if "mail" in entry else "",
+            "groups": [g.split(",")[0].replace("CN=", "") for g in groups],
+            "enabled": not _is_account_disabled(entry),
+            "locked": _is_account_locked(entry),
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def find_group_dn(conn, group_name):
+    conn.search(
+        search_base=settings.LDAP_BASE_DN,
+        search_filter=f"(&(objectClass=group)(sAMAccountName={group_name}))",
+        attributes=["distinguishedName"],
+    )
+    if not conn.entries:
+        return None
+    return conn.entries[0].entry_dn
+
+
+def add_user_to_group(username, group_name):
+    try:
+        conn = get_connection()
+        user_dn = find_user_dn(conn, username)
+        if not user_dn:
+            return {"success": False, "message": "User not found."}
+
+        group_dn = find_group_dn(conn, group_name)
+        if not group_dn:
+            return {"success": False, "message": f"Group {group_name} not found in AD."}
+
+        if not conn.extend.microsoft.add_members_to_groups([user_dn], [group_dn]):
+            return {"success": False, "message": conn.result}
+        return {"success": True, "message": f"{username} added to {group_name}."}
+    except Exception as e:
+        return {"success": False, "message": str(e)}
+
+
+def remove_user_from_group(username, group_name):
+    try:
+        conn = get_connection()
+        user_dn = find_user_dn(conn, username)
+        if not user_dn:
+            return {"success": False, "message": "User not found."}
+
+        group_dn = find_group_dn(conn, group_name)
+        if not group_dn:
+            return {"success": False, "message": f"Group {group_name} not found in AD."}
+
+        if not conn.extend.microsoft.remove_members_from_groups([user_dn], [group_dn]):
+            return {"success": False, "message": conn.result}
+        return {"success": True, "message": f"{username} removed from {group_name}."}
+    except Exception as e:
+        return {"success": False, "message": str(e)}

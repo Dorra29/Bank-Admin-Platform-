@@ -1,0 +1,29 @@
+<h1>
+AD Users
+</h1>
+
+<form method="GET">
+    <input type="text" name="q" placeholder="Search username, name, or email" value="{{ query|default:'' }}">
+    <button type="submit">Search</button>
+</form>
+
+<table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse; margin-top:12px;">
+  <tr>
+    <th>Username</th><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th></th>
+  </tr>
+  {% for u in users %}
+  <tr>
+    <td>{{ u.username }}</td>
+    <td>{{ u.first_name }} {{ u.last_name }}</td>
+    <td>{{ u.email|default:"—" }}</td>
+    <td>{{ u.role }}</td>
+    <td>
+      {% if u.enabled %}<span style="color:green;">Enabled</span>{% else %}<span style="color:red;">Disabled</span>{% endif %}
+      {% if u.locked %} / <span style="color:red;">Locked</span>{% endif %}
+    </td>
+    <td><a href="/admin-panel/manage-user/?username={{ u.username }}">Manage</a></td>
+  </tr>
+  {% empty %}
+  <tr><td colspan="6">No users found.</td></tr>
+  {% endfor %}
+</table>

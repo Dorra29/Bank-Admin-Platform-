@@ -5,7 +5,7 @@ Create AD User
 
 {% if message %}
 
-<p>
+<p style="color: {% if success %}green{% else %}red{% endif %};">
 {{message}}
 </p>
 
@@ -18,7 +18,7 @@ Create AD User
 {% csrf_token %}
 
 
-<input 
+<input
 name="username"
 placeholder="Username">
 
@@ -40,10 +40,10 @@ name="password"
 placeholder="Password"
 type="password">
 
-<select name="ou">
-    <option value="Admins">Admins</option>
-    <option value="Managers">Managers</option>
-    <option value="Employees">Employees</option>
+<select name="role">
+    <option value="Admin">Admin</option>
+    <option value="Manager">Manager</option>
+    <option value="Employee">Employee</option>
 </select>
 
 
