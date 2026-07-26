@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Manage Leave Requests{% endblock %}
+{% block content %}
+
+<a class="back-link" href="/manager-dashboard/">&larr; Back to Dashboard</a>
+
+<h1>Manage Leave Requests</h1>
+<h2>All requests from your team, across every status.</h2>
+
+<nav class="tabs">
+  <a href="/manager-dashboard/leave-requests/">All</a>
+  <a href="/manager-dashboard/leave-requests/?status=PENDING">Pending</a>
+  <a href="/manager-dashboard/leave-requests/?status=APPROVED">Approved</a>
+  <a href="/manager-dashboard/leave-requests/?status=REJECTED">Rejected</a>
+</nav>
+
+<div class="card" style="padding: 0; overflow: hidden;">
+<table>
+  <tr><th>Employee</th><th>Dates</th><th>Reason</th><th>Status</th><th>Reviewed By</th><th>Actions</th></tr>
+  {% for lr in leave_requests %}
+  <tr>
+    <td>{{ lr.employee.username }}</td>
+    <td>{{ lr.start_date }} &rarr; {{ lr.end_date }}</td>
+    <td>{{ lr.reason|default:"—" }}</td>
+    <td>
+      {% if lr.status == "PENDING" %}<span class="badge pending">Pending</span>
+      {% elif lr.status == "APPROVED" %}<span class="badge ok">Approved</span>
+      {% elif lr.status == "REJECTED" %}<span class="badge bad">Rejected</span>
+      {% else %}<span class="badge">{{ lr.status }}</span>{% endif %}
+    </td>
+    <td>{{ lr.reviewed_by.username|default:"—" }}</td>
+    <td>
+      {% if lr.status == "PENDING" %}
+      <form class="inline" method="post" action="/manager-dashboard/leave-requests/{{ lr.id }}/review/">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="approve">
+        <input type="hidden" name="next" value="leave_requests_manage">
+        <button type="submit" class="approve">Approve</button>
+      </form>
+      <form class="inline" method="post" action="/manager-dashboard/leave-requests/{{ lr.id }}/review/">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="reject">
+        <input type="hidden" name="next" value="leave_requests_manage">
+        <button type="submit" class="reject">Reject</button>
+      </form>
+      {% else %}
+      <span class="muted">—</span>
+      {% endif %}
+    </td>
+  </tr>
+  {% empty %}
+  <tr><td colspan="6" class="muted">No leave requests found.</td></tr>
+  {% endfor %}
+</table>
+</div>
+
+{% endblock %}

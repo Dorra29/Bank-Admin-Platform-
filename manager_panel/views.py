@@ -33,8 +33,36 @@ def manager_dashboard(request):
 
 @login_required
 @role_required("GG_Managers")
+def leave_requests_manage(request):
+    status_filter = request.GET.get("status", "").upper()
+    valid_statuses = dict(LeaveRequest.Status.choices)
+
+    requests_qs = LeaveRequest.objects.select_related("employee", "reviewed_by").order_by("-created_at")
+    if status_filter in valid_statuses:
+        requests_qs = requests_qs.filter(status=status_filter)
+
+    return render(
+        request,
+        "manage_leave_requests.html",
+        {
+            "leave_requests": requests_qs,
+            "status_filter": status_filter,
+            "statuses": LeaveRequest.Status.choices,
+        },
+    )
+
+
+SAFE_NEXT_VIEWS = {"manager_dashboard", "leave_requests_manage"}
+
+
+@login_required
+@role_required("GG_Managers")
 def review_leave_request(request, request_id):
     leave_request = get_object_or_404(LeaveRequest, pk=request_id)
+
+    next_view = request.POST.get("next", "manager_dashboard")
+    if next_view not in SAFE_NEXT_VIEWS:
+        next_view = "manager_dashboard"
 
     if request.method == "POST":
         action = request.POST.get("action")
@@ -50,4 +78,4 @@ def review_leave_request(request, request_id):
         except ValidationError as e:
             messages.error(request, str(e))
 
-    return redirect("manager_dashboard")
+    return redirect(next_view)

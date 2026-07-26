@@ -1,51 +1,29 @@
-<!DOCTYPE html>
-<html>
-<head>
-<title>Manager Dashboard</title>
-<style>
-  body { font-family: Arial, sans-serif; margin: 40px; color: #1a1a1a; }
-  .stats { display: flex; gap: 16px; flex-wrap: wrap; margin: 20px 0; }
-  .card { border: 1px solid #ddd; border-radius: 8px; padding: 16px 20px; min-width: 140px; }
-  .card h3 { margin: 0 0 6px 0; font-size: 14px; color: #666; text-transform: uppercase; }
-  .card .num { font-size: 28px; font-weight: bold; }
-  table { border-collapse: collapse; margin-top: 10px; width: 100%; max-width: 760px; }
-  td, th { border: 1px solid #ddd; padding: 6px 12px; text-align: left; }
-  .badge { padding: 2px 8px; border-radius: 10px; font-size: 12px; }
-  .badge.ok { background: #dcfce7; color: #166534; }
-  .badge.bad { background: #fee2e2; color: #991b1b; }
-  form.inline { display: inline; }
-  button.approve { background: #16a34a; color: white; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; }
-  button.reject { background: #dc2626; color: white; border: none; padding: 4px 10px; border-radius: 4px; margin-left: 6px; cursor: pointer; }
-  .flash-success { color: #166534; }
-  .flash-error { color: #991b1b; }
-</style>
-</head>
-<body>
+{% extends "base.html" %}
+{% block title %}Manager Dashboard{% endblock %}
+{% block content %}
 
 <h1>Manager Dashboard</h1>
-<h2>Welcome {{ request.user.username }}</h2>
-<hr>
+<h2>Team overview and leave requests</h2>
 
-{% if messages %}
-  {% for message in messages %}
-    <p class="{% if message.tags == 'error' %}flash-error{% else %}flash-success{% endif %}">{{ message }}</p>
-  {% endfor %}
-{% endif %}
+<nav class="tabs">
+  <a href="/manager-dashboard/leave-requests/">Manage Leave Requests</a>
+</nav>
 
 <h3>Team Overview</h3>
 {% if stats.error %}
-  <p style="color:red;">Couldn't load AD stats: {{ stats.error }}</p>
+  <p class="flash-error">Couldn't load AD stats: {{ stats.error }}</p>
 {% else %}
   <div class="stats">
-    <div class="card"><h3>Employees</h3><div class="num">{{ stats.employees.total }}</div></div>
-    <div class="card"><h3>Managers</h3><div class="num">{{ stats.managers.total }}</div></div>
-    <div class="card"><h3>Disabled</h3><div class="num">{{ stats.employees.disabled|add:stats.managers.disabled }}</div></div>
-    <div class="card"><h3>Locked</h3><div class="num">{{ stats.employees.locked|add:stats.managers.locked }}</div></div>
+    <div class="stat-card"><h4>Employees</h4><div class="num">{{ stats.employees.total }}</div></div>
+    <div class="stat-card"><h4>Managers</h4><div class="num">{{ stats.managers.total }}</div></div>
+    <div class="stat-card bad"><h4>Disabled</h4><div class="num">{{ stats.employees.disabled|add:stats.managers.disabled }}</div></div>
+    <div class="stat-card warn"><h4>Locked</h4><div class="num">{{ stats.employees.locked|add:stats.managers.locked }}</div></div>
   </div>
 {% endif %}
 
 <h3>Pending Leave Requests</h3>
 {% if pending_requests %}
+<div class="card" style="padding: 0; overflow: hidden;">
 <table>
   <tr><th>Employee</th><th>Dates</th><th>Reason</th><th>Actions</th></tr>
   {% for lr in pending_requests %}
@@ -57,22 +35,26 @@
       <form class="inline" method="post" action="/manager-dashboard/leave-requests/{{ lr.id }}/review/">
         {% csrf_token %}
         <input type="hidden" name="action" value="approve">
+        <input type="hidden" name="next" value="manager_dashboard">
         <button type="submit" class="approve">Approve</button>
       </form>
       <form class="inline" method="post" action="/manager-dashboard/leave-requests/{{ lr.id }}/review/">
         {% csrf_token %}
         <input type="hidden" name="action" value="reject">
+        <input type="hidden" name="next" value="manager_dashboard">
         <button type="submit" class="reject">Reject</button>
       </form>
     </td>
   </tr>
   {% endfor %}
 </table>
+</div>
 {% else %}
-<p>No pending requests.</p>
+<p class="muted">No pending requests.</p>
 {% endif %}
 
 <h3>Employee List</h3>
+<div class="card" style="padding: 0; overflow: hidden;">
 <table>
   <tr><th>Username</th><th>Name</th><th>Email</th><th>Role</th><th>Status</th></tr>
   {% for e in employees %}
@@ -88,12 +70,6 @@
   </tr>
   {% endfor %}
 </table>
+</div>
 
-<hr>
-<form action="/logout/" method="post">
-    {% csrf_token %}
-    <button type="submit">Logout</button>
-</form>
-
-</body>
-</html>
+{% endblock %}

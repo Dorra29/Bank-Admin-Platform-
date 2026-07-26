@@ -1,55 +1,33 @@
-<!DOCTYPE html>
-<html>
-<head>
-<title>Admin Dashboard</title>
-<style>
-  body { font-family: Arial, sans-serif; margin: 40px; color: #1a1a1a; }
-  .stats { display: flex; gap: 16px; flex-wrap: wrap; margin: 20px 0; }
-  .card { border: 1px solid #ddd; border-radius: 8px; padding: 16px 20px; min-width: 140px; }
-  .card h3 { margin: 0 0 6px 0; font-size: 14px; color: #666; text-transform: uppercase; }
-  .card .num { font-size: 28px; font-weight: bold; }
-  .card.warn .num { color: #b45309; }
-  .card.bad .num { color: #b91c1c; }
-  nav a { margin-right: 16px; }
-  table { border-collapse: collapse; margin-top: 10px; }
-  td, th { border: 1px solid #ddd; padding: 6px 12px; text-align: center; }
-</style>
-</head>
-<body>
+{% extends "base.html" %}
+{% block title %}Admin Dashboard{% endblock %}
+{% block content %}
 
 <h1>Admin Dashboard</h1>
-<h2>Welcome {{ request.user.username }}</h2>
+<h2>Active Directory overview</h2>
 
-<nav>
-  <a href="/admin-panel/create-user/">Create User</a>
+<nav class="tabs">
+  <a href="/admin-panel/create-user/">+ Create User</a>
   <a href="/admin-panel/users/">All Users</a>
   <a href="/admin-panel/manage-user/">Manage User</a>
 </nav>
 
-<hr>
-
 {% if stats.error %}
-  <p style="color:red;">Couldn't load AD stats: {{ stats.error }}</p>
+  <p class="flash-error">Couldn't load AD stats: {{ stats.error }}</p>
 {% else %}
   <div class="stats">
-    <div class="card"><h3>Total Users</h3><div class="num">{{ stats.total_users }}</div></div>
-    <div class="card bad"><h3>Disabled</h3><div class="num">{{ stats.total_disabled }}</div></div>
-    <div class="card warn"><h3>Locked</h3><div class="num">{{ stats.total_locked }}</div></div>
+    <div class="stat-card"><h4>Total Users</h4><div class="num">{{ stats.total_users }}</div></div>
+    <div class="stat-card bad"><h4>Disabled</h4><div class="num">{{ stats.total_disabled }}</div></div>
+    <div class="stat-card warn"><h4>Locked</h4><div class="num">{{ stats.total_locked }}</div></div>
   </div>
 
-  <table>
-    <tr><th>Role</th><th>Total</th><th>Enabled</th><th>Disabled</th><th>Locked</th></tr>
-    <tr><td>Admins</td><td>{{ stats.admins.total }}</td><td>{{ stats.admins.enabled }}</td><td>{{ stats.admins.disabled }}</td><td>{{ stats.admins.locked }}</td></tr>
-    <tr><td>Managers</td><td>{{ stats.managers.total }}</td><td>{{ stats.managers.enabled }}</td><td>{{ stats.managers.disabled }}</td><td>{{ stats.managers.locked }}</td></tr>
-    <tr><td>Employees</td><td>{{ stats.employees.total }}</td><td>{{ stats.employees.enabled }}</td><td>{{ stats.employees.disabled }}</td><td>{{ stats.employees.locked }}</td></tr>
-  </table>
+  <div class="card">
+    <table>
+      <tr><th>Role</th><th>Total</th><th>Enabled</th><th>Disabled</th><th>Locked</th></tr>
+      <tr><td>Admins</td><td>{{ stats.admins.total }}</td><td>{{ stats.admins.enabled }}</td><td>{{ stats.admins.disabled }}</td><td>{{ stats.admins.locked }}</td></tr>
+      <tr><td>Managers</td><td>{{ stats.managers.total }}</td><td>{{ stats.managers.enabled }}</td><td>{{ stats.managers.disabled }}</td><td>{{ stats.managers.locked }}</td></tr>
+      <tr><td>Employees</td><td>{{ stats.employees.total }}</td><td>{{ stats.employees.enabled }}</td><td>{{ stats.employees.disabled }}</td><td>{{ stats.employees.locked }}</td></tr>
+    </table>
+  </div>
 {% endif %}
 
-<hr>
-<form action="/logout/" method="post">
-    {% csrf_token %}
-    <button type="submit">Logout</button>
-</form>
-
-</body>
-</html>
+{% endblock %}

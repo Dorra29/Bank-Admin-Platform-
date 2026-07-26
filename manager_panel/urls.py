@@ -16,4 +16,10 @@ urlpatterns = [
         name="review_leave_request"
     ),
 
+    path(
+        "leave-requests/",
+        views.leave_requests_manage,
+        name="leave_requests_manage"
+    ),
+
 ]

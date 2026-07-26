@@ -1,57 +1,66 @@
-<!DOCTYPE html>
-<html>
-<head>
-<title>Employee Dashboard</title>
-<style>
-  body { font-family: Arial, sans-serif; margin: 40px; color: #1a1a1a; }
-  .card { border: 1px solid #ddd; border-radius: 8px; padding: 20px; max-width: 420px; }
-  .card dl { margin: 0; }
-  .card dt { font-weight: bold; color: #666; font-size: 13px; text-transform: uppercase; margin-top: 12px; }
-  .card dd { margin: 2px 0 0 0; font-size: 16px; }
-  .badge { padding: 2px 8px; border-radius: 10px; font-size: 12px; }
-  .badge.ok { background: #dcfce7; color: #166534; }
-  .badge.bad { background: #fee2e2; color: #991b1b; }
-</style>
-</head>
-<body>
+{% extends "base.html" %}
+{% block title %}Employee Dashboard{% endblock %}
+{% block content %}
 
 <h1>Employee Dashboard</h1>
-<h2>Welcome {{ request.user.username }}</h2>
-<hr>
+<h2>Your profile and leave requests</h2>
 
 {% if profile.error %}
-  <p style="color:red;">Couldn't load your profile: {{ profile.error }}</p>
+  <p class="flash-error">Couldn't load your profile: {{ profile.error }}</p>
 {% elif profile %}
   <div class="card">
-    <dl>
-      <dt>Full Name</dt>
-      <dd>{{ profile.first_name }} {{ profile.last_name }}</dd>
-
-      <dt>Username</dt>
-      <dd>{{ profile.username }}</dd>
-
-      <dt>Email</dt>
-      <dd>{{ profile.email|default:"—" }}</dd>
-
-      <dt>Groups</dt>
-      <dd>{{ profile.groups|join:", " }}</dd>
-
-      <dt>Account Status</dt>
-      <dd>
-        {% if profile.enabled %}<span class="badge ok">Enabled</span>{% else %}<span class="badge bad">Disabled</span>{% endif %}
-        {% if profile.locked %}<span class="badge bad">Locked</span>{% endif %}
-      </dd>
-    </dl>
+    <strong>{{ profile.first_name }} {{ profile.last_name }}</strong> ({{ profile.username }})<br>
+    Email: {{ profile.email|default:"—" }}<br>
+    Groups: {{ profile.groups|join:", " }}<br>
+    Status:
+    {% if profile.enabled %}<span class="badge ok">Enabled</span>{% else %}<span class="badge bad">Disabled</span>{% endif %}
+    {% if profile.locked %}<span class="badge bad">Locked</span>{% endif %}
   </div>
 {% else %}
-  <p>Profile not found in Active Directory.</p>
+  <p class="muted">Profile not found in Active Directory.</p>
 {% endif %}
 
-<hr>
-<form action="/logout/" method="post">
-    {% csrf_token %}
-    <button type="submit">Logout</button>
+<h3>Request Leave</h3>
+<div class="card">
+<form method="POST">
+{% csrf_token %}
+<div>
+  <label class="muted">From</label><br>
+  <input type="date" name="start_date" required>
+  <label class="muted">To</label><br style="display:none;">
+  <input type="date" name="end_date" required>
+</div>
+<div style="margin-top: 8px;">
+  <input type="text" name="reason" placeholder="Reason (optional)" style="width: 300px;">
+</div>
+<div style="margin-top: 12px;">
+  <button type="submit">Submit Request</button>
+</div>
 </form>
+</div>
 
-</body>
-</html>
+<h3>My Requests</h3>
+{% if my_requests %}
+<div class="card" style="padding: 0; overflow: hidden;">
+<table>
+  <tr><th>Dates</th><th>Reason</th><th>Status</th><th>Manager Note</th></tr>
+  {% for lr in my_requests %}
+  <tr>
+    <td>{{ lr.start_date }} &rarr; {{ lr.end_date }}</td>
+    <td>{{ lr.reason|default:"—" }}</td>
+    <td>
+      {% if lr.status == "PENDING" %}<span class="badge pending">Pending</span>
+      {% elif lr.status == "APPROVED" %}<span class="badge ok">Approved</span>
+      {% elif lr.status == "REJECTED" %}<span class="badge bad">Rejected</span>
+      {% else %}<span class="badge">{{ lr.status }}</span>{% endif %}
+    </td>
+    <td>{{ lr.review_note|default:"—" }}</td>
+  </tr>
+  {% endfor %}
+</table>
+</div>
+{% else %}
+<p class="muted">No leave requests yet.</p>
+{% endif %}
+
+{% endblock %}
