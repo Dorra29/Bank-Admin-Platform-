@@ -62,3 +62,53 @@ class LeaveRequest(models.Model):
 
     def __str__(self):
         return f"{self.employee.username} [{self.start_date} -> {self.end_date}] ({self.status})"
+
+
+class Task(models.Model):
+
+    class Status(models.TextChoices):
+        OPEN = "OPEN", "Open"
+        DONE = "DONE", "Done"
+
+    title = models.CharField(max_length=200)
+    description = models.CharField(max_length=500, blank=True)
+
+    assigned_to = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="tasks",
+    )
+    assigned_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="tasks_assigned",
+    )
+
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.OPEN)
+
+    # Set when a task is handed off because the original assignee went on
+    # leave — a simple audit trail, not itself enforced by any rule.
+    reassigned_from = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="tasks_reassigned_away",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def reassign(self, new_assignee):
+        self.reassigned_from = self.assigned_to
+        self.assigned_to = new_assignee
+        self.save()
+
+    def mark_done(self):
+        self.status = self.Status.DONE
+        self.save()
+
+    def __str__(self):
+        return f"{self.title} -> {self.assigned_to.username} ({self.status})"

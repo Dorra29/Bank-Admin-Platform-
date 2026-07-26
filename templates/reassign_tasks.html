@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Reassign Tasks{% endblock %}
+
+{% block nav %}
+<a href="/manager-dashboard/">Dashboard</a>
+<a href="/manager-dashboard/employees/">Employee List</a>
+<a href="/manager-dashboard/leave-requests/" class="active">Manage Leave Requests</a>
+<a href="/manager-dashboard/tasks/">Tasks</a>
+{% endblock %}
+
+{% block content %}
+
+<h1>Reassign Tasks</h1>
+<h2>{{ leave_request.employee.username }} is on leave {{ leave_request.start_date }} &rarr; {{ leave_request.end_date }} and has open tasks — pick who covers each one while they're out.</h2>
+
+<div class="card">
+<form method="POST">
+{% csrf_token %}
+<table>
+  <tr><th>Task</th><th>Reassign To</th></tr>
+  {% for task in open_tasks %}
+  <tr>
+    <td>{{ task.title }}</td>
+    <td>
+      <select name="assignee_{{ task.id }}">
+        <option value="skip">Leave as is</option>
+        {% for e in employees %}
+        <option value="{{ e.username }}">{{ e.first_name }} {{ e.last_name }} ({{ e.username }})</option>
+        {% endfor %}
+      </select>
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+<div style="margin-top: 14px;">
+  <button type="submit">Save Reassignments</button>
+</div>
+</form>
+</div>
+
+<p><a href="/manager-dashboard/leave-requests/">Skip for now &rarr;</a></p>
+
+{% endblock %}

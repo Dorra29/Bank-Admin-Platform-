@@ -28,4 +28,22 @@ urlpatterns = [
         name="leave_requests_manage"
     ),
 
+    path(
+        "leave-requests/<int:request_id>/reassign-tasks/",
+        views.reassign_tasks_for_leave,
+        name="reassign_tasks_for_leave"
+    ),
+
+    path(
+        "tasks/",
+        views.tasks_list,
+        name="tasks_list"
+    ),
+
+    path(
+        "tasks/<int:task_id>/done/",
+        views.mark_task_done,
+        name="mark_task_done"
+    ),
+
 ]

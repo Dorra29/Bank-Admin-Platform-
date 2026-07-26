@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Tasks{% endblock %}
+
+{% block nav %}
+<a href="/manager-dashboard/">Dashboard</a>
+<a href="/manager-dashboard/employees/">Employee List</a>
+<a href="/manager-dashboard/leave-requests/">Manage Leave Requests</a>
+<a href="/manager-dashboard/tasks/" class="active">Tasks</a>
+{% endblock %}
+
+{% block content %}
+
+<h1>Tasks</h1>
+<h2>Assign work to your team. If someone with open tasks goes on leave, you'll be prompted to reassign them when you approve the request.</h2>
+
+<h3>Assign a Task</h3>
+<div class="card">
+<form method="POST">
+{% csrf_token %}
+<div>
+  <input type="text" name="title" placeholder="Task title" style="width: 260px;">
+  <select name="assigned_to">
+    {% for e in employees %}
+    <option value="{{ e.username }}">{{ e.first_name }} {{ e.last_name }} ({{ e.username }})</option>
+    {% endfor %}
+  </select>
+</div>
+<div style="margin-top: 8px;">
+  <input type="text" name="description" placeholder="Description (optional)" style="width: 400px;">
+</div>
+<div style="margin-top: 12px;">
+  <button type="submit">Assign Task</button>
+</div>
+</form>
+</div>
+
+<h3>All Tasks</h3>
+{% if tasks %}
+<div class="card" style="padding: 0; overflow: hidden;">
+<table>
+  <tr><th>Task</th><th>Assigned To</th><th>Assigned By</th><th>Status</th><th>Reassigned From</th><th></th></tr>
+  {% for t in tasks %}
+  <tr>
+    <td>{{ t.title }}{% if t.description %}<br><span class="muted">{{ t.description }}</span>{% endif %}</td>
+    <td>{{ t.assigned_to.username }}</td>
+    <td>{{ t.assigned_by.username|default:"—" }}</td>
+    <td>
+      {% if t.status == "OPEN" %}<span class="badge pending">Open</span>{% else %}<span class="badge ok">Done</span>{% endif %}
+    </td>
+    <td>{{ t.reassigned_from.username|default:"—" }}</td>
+    <td>
+      {% if t.status == "OPEN" %}
+      <form class="inline" method="post" action="/manager-dashboard/tasks/{{ t.id }}/done/">
+        {% csrf_token %}
+        <button type="submit" class="approve">Mark Done</button>
+      </form>
+      {% endif %}
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+</div>
+{% else %}
+<p class="muted">No tasks yet.</p>
+{% endif %}
+
+{% endblock %}
