@@ -10,4 +10,10 @@ urlpatterns = [
         name="employee_dashboard"
     ),
 
+    path(
+        "leave/",
+        views.leave_requests,
+        name="employee_leave_requests"
+    ),
+
 ]

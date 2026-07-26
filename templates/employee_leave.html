@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Leave Requests{% endblock %}
+
+{% block nav %}
+<a href="/employee-dashboard/">Dashboard</a>
+<a href="/employee-dashboard/leave/" class="active">Leave Requests</a>
+{% endblock %}
+
+{% block content %}
+
+<h1>Leave Requests</h1>
+<h2>Submit a new request and track the ones you've already sent.</h2>
+
+<h3>Request Leave</h3>
+<div class="card">
+<form method="POST">
+{% csrf_token %}
+<div>
+  <label class="muted">From</label><br>
+  <input type="date" name="start_date" required>
+  <label class="muted">To</label><br style="display:none;">
+  <input type="date" name="end_date" required>
+</div>
+<div style="margin-top: 8px;">
+  <input type="text" name="reason" placeholder="Reason (optional)" style="width: 300px;">
+</div>
+<div style="margin-top: 12px;">
+  <button type="submit">Submit Request</button>
+</div>
+</form>
+</div>
+
+<h3>My Requests</h3>
+{% if my_requests %}
+<div class="card" style="padding: 0; overflow: hidden;">
+<table>
+  <tr><th>Dates</th><th>Reason</th><th>Status</th><th>Manager Note</th></tr>
+  {% for lr in my_requests %}
+  <tr>
+    <td>{{ lr.start_date }} &rarr; {{ lr.end_date }}</td>
+    <td>{{ lr.reason|default:"—" }}</td>
+    <td>
+      {% if lr.status == "PENDING" %}<span class="badge pending">Pending</span>
+      {% elif lr.status == "APPROVED" %}<span class="badge ok">Approved</span>
+      {% elif lr.status == "REJECTED" %}<span class="badge bad">Rejected</span>
+      {% else %}<span class="badge">{{ lr.status }}</span>{% endif %}
+    </td>
+    <td>{{ lr.review_note|default:"—" }}</td>
+  </tr>
+  {% endfor %}
+</table>
+</div>
+{% else %}
+<p class="muted">No leave requests yet.</p>
+{% endif %}
+
+{% endblock %}

@@ -12,7 +12,6 @@ from .models import LeaveRequest
 @role_required("GG_Managers")
 def manager_dashboard(request):
     stats = get_admin_dashboard_stats()
-    employees = get_employee_list()
     pending_requests = (
         LeaveRequest.objects
         .filter(status=LeaveRequest.Status.PENDING)
@@ -25,9 +24,19 @@ def manager_dashboard(request):
         "manager_dashboard.html",
         {
             "stats": stats,
-            "employees": employees,
             "pending_requests": pending_requests,
         },
+    )
+
+
+@login_required
+@role_required("GG_Managers")
+def employee_list(request):
+    employees = get_employee_list()
+    return render(
+        request,
+        "manage_employees.html",
+        {"employees": employees},
     )
 
 

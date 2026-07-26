@@ -1,15 +1,17 @@
 {% extends "base.html" %}
 {% block title %}Admin Dashboard{% endblock %}
+
+{% block nav %}
+<a href="/admin-dashboard/" class="active">Dashboard</a>
+<a href="/admin-panel/create-user/">Create User</a>
+<a href="/admin-panel/users/">All Users</a>
+<a href="/admin-panel/manage-user/">Manage User</a>
+{% endblock %}
+
 {% block content %}
 
 <h1>Admin Dashboard</h1>
 <h2>Active Directory overview</h2>
-
-<nav class="tabs">
-  <a href="/admin-panel/create-user/">+ Create User</a>
-  <a href="/admin-panel/users/">All Users</a>
-  <a href="/admin-panel/manage-user/">Manage User</a>
-</nav>
 
 {% if stats.error %}
   <p class="flash-error">Couldn't load AD stats: {{ stats.error }}</p>

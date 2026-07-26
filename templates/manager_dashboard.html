@@ -1,13 +1,16 @@
 {% extends "base.html" %}
 {% block title %}Manager Dashboard{% endblock %}
+
+{% block nav %}
+<a href="/manager-dashboard/" class="active">Dashboard</a>
+<a href="/manager-dashboard/employees/">Employee List</a>
+<a href="/manager-dashboard/leave-requests/">Manage Leave Requests</a>
+{% endblock %}
+
 {% block content %}
 
 <h1>Manager Dashboard</h1>
-<h2>Team overview and leave requests</h2>
-
-<nav class="tabs">
-  <a href="/manager-dashboard/leave-requests/">Manage Leave Requests</a>
-</nav>
+<h2>Team overview and pending approvals</h2>
 
 <h3>Team Overview</h3>
 {% if stats.error %}
@@ -52,24 +55,5 @@
 {% else %}
 <p class="muted">No pending requests.</p>
 {% endif %}
-
-<h3>Employee List</h3>
-<div class="card" style="padding: 0; overflow: hidden;">
-<table>
-  <tr><th>Username</th><th>Name</th><th>Email</th><th>Role</th><th>Status</th></tr>
-  {% for e in employees %}
-  <tr>
-    <td>{{ e.username }}</td>
-    <td>{{ e.first_name }} {{ e.last_name }}</td>
-    <td>{{ e.email|default:"—" }}</td>
-    <td>{{ e.role }}</td>
-    <td>
-      {% if e.enabled %}<span class="badge ok">Enabled</span>{% else %}<span class="badge bad">Disabled</span>{% endif %}
-      {% if e.locked %}<span class="badge bad">Locked</span>{% endif %}
-    </td>
-  </tr>
-  {% endfor %}
-</table>
-</div>
 
 {% endblock %}

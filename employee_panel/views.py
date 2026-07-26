@@ -10,6 +10,17 @@ from manager_panel.models import LeaveRequest
 @login_required
 @role_required("GG_Employees")
 def employee_dashboard(request):
+    profile = get_ad_user_profile(request.user.username)
+    return render(
+        request,
+        "employee_dashboard.html",
+        {"profile": profile},
+    )
+
+
+@login_required
+@role_required("GG_Employees")
+def leave_requests(request):
 
     if request.method == "POST":
         start_date = request.POST.get("start_date")
@@ -29,13 +40,12 @@ def employee_dashboard(request):
             )
             messages.success(request, "Leave request submitted.")
 
-        return redirect("employee_dashboard")
+        return redirect("employee_leave_requests")
 
-    profile = get_ad_user_profile(request.user.username)
     my_requests = LeaveRequest.objects.filter(employee=request.user).order_by("-created_at")
 
     return render(
         request,
-        "employee_dashboard.html",
-        {"profile": profile, "my_requests": my_requests},
+        "employee_leave.html",
+        {"my_requests": my_requests},
     )

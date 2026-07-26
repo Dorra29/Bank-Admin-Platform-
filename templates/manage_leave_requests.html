@@ -1,8 +1,13 @@
 {% extends "base.html" %}
 {% block title %}Manage Leave Requests{% endblock %}
-{% block content %}
 
-<a class="back-link" href="/manager-dashboard/">&larr; Back to Dashboard</a>
+{% block nav %}
+<a href="/manager-dashboard/">Dashboard</a>
+<a href="/manager-dashboard/employees/">Employee List</a>
+<a href="/manager-dashboard/leave-requests/" class="active">Manage Leave Requests</a>
+{% endblock %}
+
+{% block content %}
 
 <h1>Manage Leave Requests</h1>
 <h2>All requests from your team, across every status.</h2>

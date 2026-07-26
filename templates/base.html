@@ -41,6 +41,10 @@
   button.approve { background: #16a34a; }
   button.reject, button.danger { background: #dc2626; }
   .muted { color: #64748b; }
+  .navbar { background: white; border-bottom: 1px solid #e2e8f0; padding: 10px 32px; display: flex; gap: 4px; }
+  .navbar a { padding: 6px 14px; border-radius: 6px; color: #334155; text-decoration: none; font-size: 14px; font-weight: 500; }
+  .navbar a:hover { background: #f1f5f9; }
+  .navbar a.active { background: #2563eb; color: white; }
 </style>
 </head>
 <body>
@@ -55,6 +59,10 @@
     </form>
   </div>
 </header>
+
+<nav class="navbar">
+  {% block nav %}{% endblock %}
+</nav>
 
 <main>
   {% if messages %}

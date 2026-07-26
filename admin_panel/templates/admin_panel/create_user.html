@@ -1,55 +1,43 @@
-<h1>
-Create AD User
-</h1>
+{% extends "base.html" %}
+{% block title %}Create User{% endblock %}
 
+{% block nav %}
+<a href="/admin-dashboard/">Dashboard</a>
+<a href="/admin-panel/create-user/" class="active">Create User</a>
+<a href="/admin-panel/users/">All Users</a>
+<a href="/admin-panel/manage-user/">Manage User</a>
+{% endblock %}
+
+{% block content %}
+
+<h1>Create AD User</h1>
+<h2>Creates the account, sets the password, enables it, and assigns the AD group — all in one step.</h2>
 
 {% if message %}
-
-<p style="color: {% if success %}green{% else %}red{% endif %};">
-{{message}}
-</p>
-
+  <p class="{% if success %}flash-success{% else %}flash-error{% endif %}">{{ message }}</p>
 {% endif %}
 
-
-
+<div class="card">
 <form method="POST">
-
 {% csrf_token %}
 
+<div>
+  <input name="username" placeholder="Username">
+  <input name="first_name" placeholder="First name">
+  <input name="last_name" placeholder="Last name">
+</div>
+<div>
+  <input name="password" placeholder="Password" type="password">
+  <select name="role">
+      <option value="Admin">Admin</option>
+      <option value="Manager">Manager</option>
+      <option value="Employee">Employee</option>
+  </select>
+</div>
 
-<input
-name="username"
-placeholder="Username">
-
-
-<input
-name="first_name"
-placeholder="First name">
-
-
-
-<input
-name="last_name"
-placeholder="Last name">
-
-
-
-<input
-name="password"
-placeholder="Password"
-type="password">
-
-<select name="role">
-    <option value="Admin">Admin</option>
-    <option value="Manager">Manager</option>
-    <option value="Employee">Employee</option>
-</select>
-
-
-<button>
-Create User
-</button>
-
+<button>Create User</button>
 
 </form>
+</div>
+
+{% endblock %}

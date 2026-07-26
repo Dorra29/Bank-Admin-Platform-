@@ -1,40 +1,42 @@
-<h1>
-Manage AD User
-</h1>
+{% extends "base.html" %}
+{% block title %}Manage User{% endblock %}
 
+{% block nav %}
+<a href="/admin-dashboard/">Dashboard</a>
+<a href="/admin-panel/create-user/">Create User</a>
+<a href="/admin-panel/users/">All Users</a>
+<a href="/admin-panel/manage-user/" class="active">Manage User</a>
+{% endblock %}
+
+{% block content %}
+
+<h1>Manage AD User</h1>
+<h2><a href="/admin-panel/users/">&larr; back to user list</a></h2>
 
 {% if message %}
-
-<p style="color: {% if success %}green{% else %}red{% endif %};">
-{{message}}
-</p>
-
+  <p class="{% if success %}flash-success{% else %}flash-error{% endif %}">{{ message }}</p>
 {% endif %}
 
-
 {% if user_detail and not user_detail.error %}
-<div style="border:1px solid #ddd; border-radius:8px; padding:12px 16px; max-width:420px; margin-bottom:16px;">
+<div class="card">
   <strong>{{ user_detail.first_name }} {{ user_detail.last_name }}</strong> ({{ user_detail.username }})<br>
   Email: {{ user_detail.email|default:"—" }}<br>
   OU: {{ user_detail.ou|default:"—" }}<br>
   Groups: {{ user_detail.groups|join:", "|default:"—" }}<br>
   Status:
-  {% if user_detail.enabled %}<span style="color:green;">Enabled</span>{% else %}<span style="color:red;">Disabled</span>{% endif %}
-  {% if user_detail.locked %} / <span style="color:red;">Locked</span>{% endif %}
+  {% if user_detail.enabled %}<span class="badge ok">Enabled</span>{% else %}<span class="badge bad">Disabled</span>{% endif %}
+  {% if user_detail.locked %}<span class="badge bad">Locked</span>{% endif %}
 </div>
 {% endif %}
 
-
+<div class="card">
 <form method="POST" onsubmit="return confirmIfDelete();">
-
 {% csrf_token %}
-
 
 <input
 name="username"
 placeholder="Username"
 value="{{ prefill_username|default:'' }}">
-
 
 <select name="action" id="action" onchange="toggleExtraFields()">
     <option value="enable">Enable</option>
@@ -47,14 +49,11 @@ value="{{ prefill_username|default:'' }}">
     <option value="delete">Delete User</option>
 </select>
 
-<div id="password-field" style="display:none;">
-    <input
-    type="password"
-    name="new_password"
-    placeholder="New password">
+<div id="password-field" style="display:none; margin-top:8px;">
+    <input type="password" name="new_password" placeholder="New password">
 </div>
 
-<div id="group-field" style="display:none;">
+<div id="group-field" style="display:none; margin-top:8px;">
     <select name="group_name">
         <option value="GG_Admins">GG_Admins</option>
         <option value="GG_Managers">GG_Managers</option>
@@ -62,22 +61,19 @@ value="{{ prefill_username|default:'' }}">
     </select>
 </div>
 
-<div id="ou-field" style="display:none;">
+<div id="ou-field" style="display:none; margin-top:8px;">
     <select name="target_ou">
         <option value="Admins">Admins</option>
         <option value="Employees">Employees</option>
     </select>
 </div>
 
-
-<button>
-Submit
-</button>
-
+<div style="margin-top: 14px;">
+<button id="submit-btn">Submit</button>
+</div>
 
 </form>
-
-<p><a href="/admin-panel/users/">Back to user list</a></p>
+</div>
 
 <script>
 function toggleExtraFields() {
@@ -85,6 +81,9 @@ function toggleExtraFields() {
     document.getElementById("password-field").style.display = action === "reset_password" ? "block" : "none";
     document.getElementById("group-field").style.display = (action === "add_group" || action === "remove_group") ? "block" : "none";
     document.getElementById("ou-field").style.display = action === "move_ou" ? "block" : "none";
+
+    const btn = document.getElementById("submit-btn");
+    btn.className = action === "delete" ? "danger" : "";
 }
 
 function confirmIfDelete() {
@@ -95,3 +94,5 @@ function confirmIfDelete() {
     return true;
 }
 </script>
+
+{% endblock %}

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Employee List{% endblock %}
+
+{% block nav %}
+<a href="/manager-dashboard/">Dashboard</a>
+<a href="/manager-dashboard/employees/" class="active">Employee List</a>
+<a href="/manager-dashboard/leave-requests/">Manage Leave Requests</a>
+{% endblock %}
+
+{% block content %}
+
+<h1>Employee List</h1>
+<h2>Read-only view of your team, pulled live from Active Directory.</h2>
+
+<div class="card" style="padding: 0; overflow: hidden;">
+<table>
+  <tr><th>Username</th><th>Name</th><th>Email</th><th>Role</th><th>Status</th></tr>
+  {% for e in employees %}
+  <tr>
+    <td>{{ e.username }}</td>
+    <td>{{ e.first_name }} {{ e.last_name }}</td>
+    <td>{{ e.email|default:"—" }}</td>
+    <td>{{ e.role }}</td>
+    <td>
+      {% if e.enabled %}<span class="badge ok">Enabled</span>{% else %}<span class="badge bad">Disabled</span>{% endif %}
+      {% if e.locked %}<span class="badge bad">Locked</span>{% endif %}
+    </td>
+  </tr>
+  {% empty %}
+  <tr><td colspan="5" class="muted">No employees found.</td></tr>
+  {% endfor %}
+</table>
+</div>
+
+{% endblock %}
