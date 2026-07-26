@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}My Tasks{% endblock %}
+
+{% block nav %}
+<a href="/employee-dashboard/">Dashboard</a>
+<a href="/employee-dashboard/leave/">Leave Requests</a>
+<a href="/employee-dashboard/tasks/" class="active">My Tasks</a>
+{% endblock %}
+
+{% block content %}
+
+<h1>My Tasks</h1>
+<h2>Work currently assigned to you.</h2>
+
+{% if tasks %}
+<div class="card" style="padding: 0; overflow: hidden;">
+<table>
+  <tr><th>Task</th><th>Assigned By</th><th>Status</th><th></th></tr>
+  {% for t in tasks %}
+  <tr>
+    <td>
+      {{ t.title }}
+      {% if t.description %}<br><span class="muted">{{ t.description }}</span>{% endif %}
+      {% if t.reassigned_from %}<br><span class="muted">Handed off from {{ t.reassigned_from.username }}</span>{% endif %}
+    </td>
+    <td>{{ t.assigned_by.username|default:"—" }}</td>
+    <td>
+      {% if t.status == "OPEN" %}<span class="badge pending">Open</span>{% else %}<span class="badge ok">Done</span>{% endif %}
+    </td>
+    <td>
+      {% if t.status == "OPEN" %}
+      <form method="post" action="/employee-dashboard/tasks/{{ t.id }}/done/">
+        {% csrf_token %}
+        <button type="submit" class="approve">Mark Done</button>
+      </form>
+      {% endif %}
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+</div>
+{% else %}
+<p class="muted">No tasks assigned to you right now.</p>
+{% endif %}
+
+{% endblock %}
