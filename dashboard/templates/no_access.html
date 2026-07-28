@@ -1,5 +1,11 @@
-<h1>Access Denied</h1>
+{% extends "base.html" %}
+{% block title %}Access Denied{% endblock %}
+{% block content %}
 
-<p>
-Your Active Directory account does not have permission to access this platform.
-</p>
+<div class="card" style="text-align:center; padding: 40px 24px;">
+  <h1>403 — Access Denied</h1>
+  <p class="muted">Your Active Directory account does not have permission to access this platform.</p>
+  <a class="back-link" href="/dashboard/">&larr; Return to dashboard</a>
+</div>
+
+{% endblock %}
