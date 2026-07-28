@@ -6,11 +6,38 @@
 <style>
   * { box-sizing: border-box; }
   body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; background: #f5f6fa; color: #1a1a1a; }
-  header { background: #0f172a; color: white; padding: 14px 32px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; align-items: center; }
+
+  /* ---- Top header (always full width, hosts the hamburger) ---- */
+  header { background: #0f172a; color: white; padding: 12px 20px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; align-items: center; }
+  header .header-left { display: flex; align-items: center; gap: 12px; }
+  .hamburger { background: transparent; border: 1px solid rgba(255,255,255,0.25); color: white; font-size: 18px; line-height: 1; padding: 6px 10px; border-radius: 6px; cursor: pointer; }
+  .hamburger:hover { background: rgba(255,255,255,0.1); }
   header .brand { font-weight: 600; font-size: 18px; }
   header .user-info { font-size: 14px; opacity: 0.9; display: flex; align-items: center; gap: 14px; }
   header .user-info button { background: transparent; color: #f87171; border: 1px solid #f87171; padding: 4px 10px; border-radius: 6px; cursor: pointer; }
-  main { max-width: 920px; margin: 30px auto; padding: 0 20px 40px; }
+
+  /* ---- App body: sidebar + main, side by side ---- */
+  .app-body { display: flex; align-items: stretch; }
+
+  .sidebar-backdrop { display: none; }
+
+  .sidebar {
+    width: 220px;
+    flex-shrink: 0;
+    background: white;
+    border-right: 1px solid #e2e8f0;
+    overflow: hidden;
+    transition: width 0.2s ease;
+  }
+  .sidebar-nav { display: flex; flex-direction: column; padding: 14px 10px; gap: 2px; width: 220px; }
+  .sidebar-nav a { padding: 10px 14px; border-radius: 6px; color: #334155; text-decoration: none; font-size: 14px; font-weight: 500; white-space: nowrap; }
+  .sidebar-nav a:hover { background: #f1f5f9; }
+  .sidebar-nav a.active { background: #2563eb; color: white; }
+
+  /* Desktop collapsed (minimized): hamburger click hides the sidebar entirely */
+  body.sidebar-collapsed .sidebar { width: 0; border-right: none; }
+
+  main { flex: 1; min-width: 0; max-width: 1000px; margin: 0; padding: 30px 32px; }
   .back-link { display: inline-block; margin-bottom: 18px; color: #2563eb; text-decoration: none; font-size: 14px; font-weight: 500; }
   .back-link:hover { text-decoration: underline; }
   h1 { font-size: 22px; margin: 0 0 4px 0; }
@@ -43,30 +70,49 @@
   button.approve { background: #16a34a; }
   button.reject, button.danger { background: #dc2626; }
   .muted { color: #64748b; }
-  .navbar { background: white; border-bottom: 1px solid #e2e8f0; padding: 10px 20px; display: flex; gap: 4px; overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; }
-  .navbar a { padding: 6px 14px; border-radius: 6px; color: #334155; text-decoration: none; font-size: 14px; font-weight: 500; flex: 0 0 auto; }
-  .navbar a:hover { background: #f1f5f9; }
-  .navbar a.active { background: #2563eb; color: white; }
+
+  @media (max-width: 899px) {
+    /* Sidebar becomes an off-canvas overlay instead of pushing content */
+    .sidebar {
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      width: 0;
+      z-index: 100;
+      box-shadow: 2px 0 16px rgba(0,0,0,0.25);
+    }
+    .sidebar-nav { height: 100%; padding-top: 60px; }
+    body.sidebar-mobile-open .sidebar { width: 240px; }
+    body.sidebar-mobile-open .sidebar-backdrop {
+      display: block;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 90;
+    }
+    body.sidebar-mobile-open { overflow: hidden; }
+  }
 
   @media (max-width: 640px) {
     header { padding: 12px 16px; }
     header .brand { font-size: 16px; }
-    .navbar { padding: 8px 16px; }
-    main { margin: 16px auto; padding: 0 12px 32px; }
+    main { padding: 16px 12px 32px; }
     .card { padding: 14px 16px; }
     h1 { font-size: 19px; }
     .stat-card { min-width: 100px; padding: 12px 14px; }
     .stat-card .num { font-size: 22px; }
     form.inline { display: block; margin-bottom: 6px; }
     main button { width: 100%; }
-    .navbar a, nav.tabs a { display: inline-block; }
+    nav.tabs a { display: inline-block; }
   }
 </style>
 </head>
 <body>
 
 <header>
-  <div class="brand">Bank AD Portal</div>
+  <div class="header-left">
+    <button type="button" id="hamburger-btn" class="hamburger" onclick="toggleSidebar()" aria-label="Toggle navigation menu" aria-expanded="true">&#9776;</button>
+    <div class="brand">Bank AD Portal</div>
+  </div>
   <div class="user-info">
     {{ request.user.username }}
     <form action="/logout/" method="post">
@@ -76,18 +122,54 @@
   </div>
 </header>
 
-<nav class="navbar">
-  {% block nav %}{% endblock %}
-</nav>
+<div class="app-body">
+  <div id="sidebar-backdrop" class="sidebar-backdrop" onclick="closeSidebarMobile()"></div>
 
-<main>
-  {% if messages %}
-    {% for message in messages %}
-      <p class="{% if message.tags == 'error' %}flash-error{% else %}flash-success{% endif %}">{{ message }}</p>
-    {% endfor %}
-  {% endif %}
-  {% block content %}{% endblock %}
-</main>
+  <aside class="sidebar">
+    <nav class="sidebar-nav">
+      {% block nav %}{% endblock %}
+    </nav>
+  </aside>
+
+  <main>
+    {% if messages %}
+      {% for message in messages %}
+        <p class="{% if message.tags == 'error' %}flash-error{% else %}flash-success{% endif %}">{{ message }}</p>
+      {% endfor %}
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+</div>
+
+<script>
+function isMobileWidth() {
+    return window.matchMedia('(max-width: 899px)').matches;
+}
+
+function toggleSidebar() {
+    var body = document.body;
+    var btn = document.getElementById('hamburger-btn');
+    var isOpenNow;
+
+    if (isMobileWidth()) {
+        body.classList.toggle('sidebar-mobile-open');
+        isOpenNow = body.classList.contains('sidebar-mobile-open');
+    } else {
+        body.classList.toggle('sidebar-collapsed');
+        isOpenNow = !body.classList.contains('sidebar-collapsed');
+    }
+
+    if (btn) {
+        btn.setAttribute('aria-expanded', isOpenNow ? 'true' : 'false');
+    }
+}
+
+function closeSidebarMobile() {
+    document.body.classList.remove('sidebar-mobile-open');
+    var btn = document.getElementById('hamburger-btn');
+    if (btn) { btn.setAttribute('aria-expanded', 'false'); }
+}
+</script>
 
 </body>
 </html>
