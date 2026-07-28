@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome — Bank AD Portal</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #0f172a;
+            min-height: 100vh;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .welcome-card {
+            background: white;
+            border-radius: 12px;
+            padding: 44px 36px;
+            width: 100%;
+            max-width: 420px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        .logo-badge {
+            width: 52px;
+            height: 52px;
+            margin: 0 auto 18px;
+            border-radius: 12px;
+            background: #0f172a;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 20px;
+        }
+        .welcome-card h1 {
+            font-size: 22px;
+            margin: 0 0 8px 0;
+            color: #0f172a;
+        }
+        .welcome-card p {
+            margin: 0 0 28px 0;
+            color: #64748b;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .feature-list {
+            list-style: none;
+            padding: 0;
+            margin: 0 0 28px 0;
+            text-align: left;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .feature-list li {
+            font-size: 13px;
+            color: #334155;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .feature-list li::before {
+            content: "";
+            flex-shrink: 0;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #2563eb;
+        }
+        .btn-primary {
+            display: block;
+            width: 100%;
+            padding: 11px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            text-align: center;
+        }
+        .btn-primary:hover { opacity: 0.92; }
+        .footnote {
+            margin: 18px 0 0 0 !important;
+            font-size: 12px !important;
+            color: #94a3b8 !important;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="welcome-card">
+    <div class="logo-badge">AD</div>
+    <h1>Bank AD Portal</h1>
+    <p>A single place to manage Active Directory accounts, tasks, and leave requests across the organization.</p>
+
+    <ul class="feature-list">
+        <li>Sign in securely with your Active Directory credentials</li>
+        <li>Role-based dashboards for admins, managers, and employees</li>
+        <li>Manage tasks and leave requests in one workflow</li>
+    </ul>
+
+    <a class="btn-primary" href="{% url 'login' %}">Sign In</a>
+
+    <p class="footnote">Access is provisioned by your AD group membership.</p>
+</div>
+
+</body>
+</html>

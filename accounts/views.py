@@ -6,6 +6,17 @@ from django.contrib.auth.decorators import login_required
 
 
 
+def welcome_view(request):
+
+    if request.user.is_authenticated:
+        return redirect("/dashboard/")
+
+    return render(
+        request,
+        "welcome.html"
+    )
+
+
 def login_view(request):
 
     if request.method == "POST":
