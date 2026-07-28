@@ -1,101 +1,195 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Welcome — Bank AD Portal</title>
-    <style>
-        * { box-sizing: border-box; }
-        body {
-            font-family: 'Segoe UI', Arial, sans-serif;
-            background: #0f172a;
-            min-height: 100vh;
-            margin: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-        .welcome-card {
-            background: white;
-            border-radius: 12px;
-            padding: 44px 36px;
-            width: 100%;
-            max-width: 420px;
-            text-align: center;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-        }
-        .logo-badge {
-            width: 52px;
-            height: 52px;
-            margin: 0 auto 18px;
-            border-radius: 12px;
-            background: #0f172a;
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            font-size: 20px;
-        }
-        .welcome-card h1 {
-            font-size: 22px;
-            margin: 0 0 8px 0;
-            color: #0f172a;
-        }
-        .welcome-card p {
-            margin: 0 0 28px 0;
-            color: #64748b;
-            font-size: 14px;
-            line-height: 1.5;
-        }
-        .feature-list {
-            list-style: none;
-            padding: 0;
-            margin: 0 0 28px 0;
-            text-align: left;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        .feature-list li {
-            font-size: 13px;
-            color: #334155;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .feature-list li::before {
-            content: "";
-            flex-shrink: 0;
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-            background: #2563eb;
-        }
-        .btn-primary {
-            display: block;
-            width: 100%;
-            padding: 11px;
-            background: #2563eb;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            text-decoration: none;
-            text-align: center;
-        }
-        .btn-primary:hover { opacity: 0.92; }
-        .footnote {
-            margin: 18px 0 0 0 !important;
-            font-size: 12px !important;
-            color: #94a3b8 !important;
-        }
-    </style>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Welcome — Bank AD Portal</title>
+<script>
+  // Applied before first paint to avoid a flash of the wrong theme.
+  (function () {
+    var stored = localStorage.getItem('theme');
+    var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    var theme = stored || (prefersDark ? 'dark' : 'light');
+    document.documentElement.setAttribute('data-theme', theme);
+  })();
+</script>
+<style>
+    * { box-sizing: border-box; }
+
+    :root {
+        --page-bg: #eef1f6;
+        --card-bg: #ffffff;
+        --card-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+        --text-heading: #0f172a;
+        --text-body: #64748b;
+        --text-feature: #334155;
+        --accent: #2563eb;
+        --accent-contrast: #ffffff;
+        --footnote: #94a3b8;
+        --badge-bg: #0f172a;
+        --badge-text: #ffffff;
+        --toggle-bg: #ffffff;
+        --toggle-border: #e2e8f0;
+        --toggle-icon: #0f172a;
+    }
+
+    html[data-theme="dark"] {
+        --page-bg: #0b1120;
+        --card-bg: #1e293b;
+        --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
+        --text-heading: #f1f5f9;
+        --text-body: #94a3b8;
+        --text-feature: #cbd5e1;
+        --accent: #3b82f6;
+        --accent-contrast: #ffffff;
+        --footnote: #64748b;
+        --badge-bg: #3b82f6;
+        --badge-text: #0b1120;
+        --toggle-bg: #1e293b;
+        --toggle-border: #334155;
+        --toggle-icon: #f1f5f9;
+    }
+
+    body {
+        font-family: 'Segoe UI', Arial, sans-serif;
+        background: var(--page-bg);
+        min-height: 100vh;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        transition: background-color 0.25s ease;
+    }
+
+    .theme-toggle {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        border: 1px solid var(--toggle-border);
+        background: var(--toggle-bg);
+        color: var(--toggle-icon);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        transition: background-color 0.25s ease, border-color 0.25s ease, transform 0.15s ease;
+    }
+    .theme-toggle:hover { transform: scale(1.06); }
+    .theme-toggle svg { width: 20px; height: 20px; }
+    .theme-toggle .icon-sun { display: none; }
+    .theme-toggle .icon-moon { display: block; }
+    html[data-theme="dark"] .theme-toggle .icon-sun { display: block; }
+    html[data-theme="dark"] .theme-toggle .icon-moon { display: none; }
+
+    .welcome-card {
+        background: var(--card-bg);
+        border-radius: 12px;
+        padding: 44px 36px;
+        width: 100%;
+        max-width: 420px;
+        text-align: center;
+        box-shadow: var(--card-shadow);
+        transition: background-color 0.25s ease, box-shadow 0.25s ease;
+    }
+    .logo-badge {
+        width: 52px;
+        height: 52px;
+        margin: 0 auto 18px;
+        border-radius: 12px;
+        background: var(--badge-bg);
+        color: var(--badge-text);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 20px;
+        transition: background-color 0.25s ease, color 0.25s ease;
+    }
+    .welcome-card h1 {
+        font-size: 22px;
+        margin: 0 0 8px 0;
+        color: var(--text-heading);
+        transition: color 0.25s ease;
+    }
+    .welcome-card p {
+        margin: 0 0 28px 0;
+        color: var(--text-body);
+        font-size: 14px;
+        line-height: 1.5;
+        transition: color 0.25s ease;
+    }
+    .feature-list {
+        list-style: none;
+        padding: 0;
+        margin: 0 0 28px 0;
+        text-align: left;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    .feature-list li {
+        font-size: 13px;
+        color: var(--text-feature);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        transition: color 0.25s ease;
+    }
+    .feature-list li::before {
+        content: "";
+        flex-shrink: 0;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--accent);
+        transition: background-color 0.25s ease;
+    }
+    .btn-primary {
+        display: block;
+        width: 100%;
+        padding: 11px;
+        background: var(--accent);
+        color: var(--accent-contrast);
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        text-align: center;
+        transition: background-color 0.25s ease, opacity 0.15s ease;
+    }
+    .btn-primary:hover { opacity: 0.92; }
+    .footnote {
+        margin: 18px 0 0 0 !important;
+        font-size: 12px !important;
+        color: var(--footnote) !important;
+    }
+</style>
 </head>
 
 <body>
+
+<button type="button" id="theme-toggle" class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle dark mode" aria-pressed="false">
+  <svg class="icon icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="5"/>
+    <line x1="12" y1="1" x2="12" y2="3"/>
+    <line x1="12" y1="21" x2="12" y2="23"/>
+    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+    <line x1="1" y1="12" x2="3" y2="12"/>
+    <line x1="21" y1="12" x2="23" y2="12"/>
+    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+  </svg>
+  <svg class="icon icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+  </svg>
+</button>
 
 <div class="welcome-card">
     <div class="logo-badge">AD</div>
@@ -112,6 +206,22 @@
 
     <p class="footnote">Access is provisioned by your AD group membership.</p>
 </div>
+
+<script>
+function toggleTheme() {
+    var html = document.documentElement;
+    var current = html.getAttribute('data-theme');
+    var next = current === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-theme', next);
+    localStorage.setItem('theme', next);
+    document.getElementById('theme-toggle').setAttribute('aria-pressed', next === 'dark' ? 'true' : 'false');
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    document.getElementById('theme-toggle').setAttribute('aria-pressed', isDark ? 'true' : 'false');
+});
+</script>
 
 </body>
 </html>
