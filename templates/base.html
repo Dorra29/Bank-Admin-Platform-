@@ -1,11 +1,12 @@
 <!DOCTYPE html>
 <html>
 <head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{% block title %}Bank AD Portal{% endblock %}</title>
 <style>
   * { box-sizing: border-box; }
   body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; background: #f5f6fa; color: #1a1a1a; }
-  header { background: #0f172a; color: white; padding: 14px 32px; display: flex; justify-content: space-between; align-items: center; }
+  header { background: #0f172a; color: white; padding: 14px 32px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; align-items: center; }
   header .brand { font-weight: 600; font-size: 18px; }
   header .user-info { font-size: 14px; opacity: 0.9; display: flex; align-items: center; gap: 14px; }
   header .user-info button { background: transparent; color: #f87171; border: 1px solid #f87171; padding: 4px 10px; border-radius: 6px; cursor: pointer; }
@@ -15,20 +16,21 @@
   h1 { font-size: 22px; margin: 0 0 4px 0; }
   h2 { font-size: 15px; font-weight: 500; color: #64748b; margin: 0 0 20px 0; }
   h3 { font-size: 16px; margin: 28px 0 10px 0; }
-  .card { background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 20px 24px; margin-bottom: 20px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+  .card { background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 20px 24px; margin-bottom: 20px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); overflow-x: auto; }
   .stats { display: flex; gap: 16px; flex-wrap: wrap; margin: 4px 0 20px; }
-  .stat-card { border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px 20px; min-width: 130px; background: white; }
+  .stat-card { border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px 20px; min-width: 130px; flex: 1 1 130px; background: white; }
   .stat-card h4 { margin: 0 0 6px 0; font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
   .stat-card .num { font-size: 26px; font-weight: 700; }
   .stat-card.bad .num { color: #b91c1c; }
   .stat-card.warn .num { color: #b45309; }
-  table { border-collapse: collapse; width: 100%; background: white; }
+  .table-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { border-collapse: collapse; width: 100%; min-width: 480px; background: white; }
   td, th { border: 1px solid #e2e8f0; padding: 9px 12px; text-align: left; font-size: 14px; }
   th { background: #f8fafc; text-transform: uppercase; font-size: 11px; color: #64748b; letter-spacing: 0.03em; }
-  nav.tabs { margin-bottom: 4px; }
+  nav.tabs { margin-bottom: 4px; overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; }
   nav.tabs a { margin-right: 18px; color: #2563eb; text-decoration: none; font-size: 14px; font-weight: 500; }
   nav.tabs a:hover { text-decoration: underline; }
-  input, select, textarea { padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 6px; margin: 4px 8px 4px 0; font-size: 14px; font-family: inherit; }
+  input, select, textarea { padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 6px; margin: 4px 8px 4px 0; font-size: 16px; font-family: inherit; max-width: 100%; }
   button { padding: 8px 16px; border-radius: 6px; border: none; background: #2563eb; color: white; font-size: 14px; cursor: pointer; }
   button:hover { opacity: 0.9; }
   .badge { padding: 2px 9px; border-radius: 10px; font-size: 12px; font-weight: 500; }
@@ -37,14 +39,28 @@
   .badge.pending { background: #fef9c3; color: #854d0e; }
   .flash-success { color: #166534; background: #f0fdf4; border: 1px solid #bbf7d0; padding: 10px 14px; border-radius: 6px; margin-bottom: 14px; }
   .flash-error { color: #991b1b; background: #fef2f2; border: 1px solid #fecaca; padding: 10px 14px; border-radius: 6px; margin-bottom: 14px; }
-  form.inline { display: inline; }
+  form.inline { display: inline-block; }
   button.approve { background: #16a34a; }
   button.reject, button.danger { background: #dc2626; }
   .muted { color: #64748b; }
-  .navbar { background: white; border-bottom: 1px solid #e2e8f0; padding: 10px 32px; display: flex; gap: 4px; }
-  .navbar a { padding: 6px 14px; border-radius: 6px; color: #334155; text-decoration: none; font-size: 14px; font-weight: 500; }
+  .navbar { background: white; border-bottom: 1px solid #e2e8f0; padding: 10px 20px; display: flex; gap: 4px; overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; }
+  .navbar a { padding: 6px 14px; border-radius: 6px; color: #334155; text-decoration: none; font-size: 14px; font-weight: 500; flex: 0 0 auto; }
   .navbar a:hover { background: #f1f5f9; }
   .navbar a.active { background: #2563eb; color: white; }
+
+  @media (max-width: 640px) {
+    header { padding: 12px 16px; }
+    header .brand { font-size: 16px; }
+    .navbar { padding: 8px 16px; }
+    main { margin: 16px auto; padding: 0 12px 32px; }
+    .card { padding: 14px 16px; }
+    h1 { font-size: 19px; }
+    .stat-card { min-width: 100px; padding: 12px 14px; }
+    .stat-card .num { font-size: 22px; }
+    form.inline { display: block; margin-bottom: 6px; }
+    main button { width: 100%; }
+    .navbar a, nav.tabs a { display: inline-block; }
+  }
 </style>
 </head>
 <body>

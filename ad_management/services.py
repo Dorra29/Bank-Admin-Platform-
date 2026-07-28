@@ -97,6 +97,13 @@ def enable_ad_user(username):
             return {"success": False, "message": "User not found."}
 
         if not conn.modify(user_dn, {"userAccountControl": [(MODIFY_REPLACE, [512])]}):
+            if conn.result.get("description") == "unwillingToPerform":
+                return {
+                    "success": False,
+                    "message": "AD refused to enable this account — it most likely has no valid "
+                                "password set yet (common for accounts left over from a failed "
+                                "creation attempt). Use Reset Password first, then try Enable again.",
+                }
             return {"success": False, "message": conn.result}
         return {"success": True, "message": f"{username} enabled."}
     except Exception as e:

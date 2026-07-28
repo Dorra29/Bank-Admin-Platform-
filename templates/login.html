@@ -1,23 +1,26 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bank AD Login</title>
     <style>
         * { box-sizing: border-box; }
         body {
             font-family: 'Segoe UI', Arial, sans-serif;
             background: #0f172a;
-            height: 100vh;
+            min-height: 100vh;
             margin: 0;
             display: flex;
             align-items: center;
             justify-content: center;
+            padding: 20px;
         }
         .login-card {
             background: white;
             border-radius: 12px;
             padding: 36px 32px;
-            width: 320px;
+            width: 100%;
+            max-width: 320px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.3);
         }
         .login-card h1 {
@@ -43,7 +46,7 @@
             border: 1px solid #cbd5e1;
             border-radius: 6px;
             margin-bottom: 16px;
-            font-size: 14px;
+            font-size: 16px;
         }
         button {
             width: 100%;
