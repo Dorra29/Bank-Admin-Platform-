@@ -16,6 +16,10 @@ def dashboard_redirect(request):
             return redirect("/admin-dashboard/")
 
 
+        if "GG_SupportAdmins" in group:
+            return redirect("/admin-dashboard/")
+
+
         if "GG_Managers" in group:
             return redirect("/manager-dashboard/")
 

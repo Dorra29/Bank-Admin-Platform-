@@ -145,6 +145,10 @@ class ActiveDirectoryBackend(BaseBackend):
                     django_user.is_superuser = True
 
 
+                elif "GG_SupportAdmins" in group:
+                    django_user.is_staff = True
+
+
                 elif "GG_Managers" in group:
                     django_user.is_staff = True
 

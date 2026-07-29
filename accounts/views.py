@@ -4,6 +4,8 @@ from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 
+from ad_management.services import get_password_expiration
+
 
 
 def welcome_view(request):
@@ -37,6 +39,21 @@ def login_view(request):
 
 
             if user is not None:
+
+                expiration = get_password_expiration(username)
+
+                if expiration and expiration.is_expired():
+
+                    print("PASSWORD EXPIRED:", username)
+
+                    return render(
+                        request,
+                        "login.html",
+                        {
+                            "error": "Your password expired on "
+                            f"{expiration.expires_on}. Contact an admin to reset it."
+                        },
+                    )
 
                 login(request, user)
 

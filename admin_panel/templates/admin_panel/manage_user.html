@@ -26,6 +26,15 @@
   Status:
   {% if user_detail.enabled %}<span class="badge ok">Enabled</span>{% else %}<span class="badge bad">Disabled</span>{% endif %}
   {% if user_detail.locked %}<span class="badge bad">Locked</span>{% endif %}
+  <br>
+  Password expiration:
+  {% if password_expiration %}
+    <span class="badge {% if password_expiration.is_expired %}bad{% else %}ok{% endif %}">
+      {{ password_expiration.expires_on }}{% if password_expiration.is_expired %} (expired){% endif %}
+    </span>
+  {% else %}
+    <span class="muted">not set</span>
+  {% endif %}
 </div>
 {% endif %}
 
@@ -46,7 +55,11 @@ value="{{ prefill_username|default:'' }}">
     <option value="add_group">Add to Group</option>
     <option value="remove_group">Remove from Group</option>
     <option value="move_ou">Move to OU</option>
+    <option value="set_password_expiration">Set Password Expiration</option>
+    <option value="clear_password_expiration">Clear Password Expiration</option>
+    {% if can_delete %}
     <option value="delete">Delete User</option>
+    {% endif %}
 </select>
 
 <div id="password-field" style="display:none; margin-top:8px;">
@@ -56,6 +69,7 @@ value="{{ prefill_username|default:'' }}">
 <div id="group-field" style="display:none; margin-top:8px;">
     <select name="group_name">
         <option value="GG_Admins">GG_Admins</option>
+        <option value="GG_SupportAdmins">GG_SupportAdmins</option>
         <option value="GG_Managers">GG_Managers</option>
         <option value="GG_Employees">GG_Employees</option>
     </select>
@@ -67,6 +81,14 @@ value="{{ prefill_username|default:'' }}">
         <option value="Employees">Employees</option>
     </select>
 </div>
+
+<div id="expiration-field" style="display:none; margin-top:8px;">
+    <input type="date" name="expires_on">
+</div>
+
+{% if not can_delete %}
+<p class="muted" style="margin-top:8px;">Signed in as a Support Admin — account deletion is Admin-only.</p>
+{% endif %}
 
 <div style="margin-top: 14px;">
 <button id="submit-btn">Submit</button>
@@ -81,6 +103,7 @@ function toggleExtraFields() {
     document.getElementById("password-field").style.display = action === "reset_password" ? "block" : "none";
     document.getElementById("group-field").style.display = (action === "add_group" || action === "remove_group") ? "block" : "none";
     document.getElementById("ou-field").style.display = action === "move_ou" ? "block" : "none";
+    document.getElementById("expiration-field").style.display = action === "set_password_expiration" ? "block" : "none";
 
     const btn = document.getElementById("submit-btn");
     btn.className = action === "delete" ? "danger" : "";

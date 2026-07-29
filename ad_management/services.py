@@ -2,6 +2,8 @@ import ssl
 from ldap3 import Server, Connection, ALL, Tls, MODIFY_REPLACE
 from django.conf import settings
 
+from .models import PasswordExpiration
+
 
 def get_connection():
     """Single LDAPS connection used for every write operation.
@@ -168,21 +170,25 @@ def get_admin_dashboard_stats():
 
         stats = {
             "admins": {"total": 0, "enabled": 0, "disabled": 0, "locked": 0},
+            "support_admins": {"total": 0, "enabled": 0, "disabled": 0, "locked": 0},
             "managers": {"total": 0, "enabled": 0, "disabled": 0, "locked": 0},
             "employees": {"total": 0, "enabled": 0, "disabled": 0, "locked": 0},
         }
 
-        # OU=Admins — every account here is an admin
+        # OU=Admins — holds both GG_Admins and GG_SupportAdmins members
         conn.search(
             search_base=f"OU=Admins,{settings.LDAP_BASE_DN}",
             search_filter="(&(objectClass=user)(objectCategory=person))",
-            attributes=["userAccountControl", "lockoutTime"],
+            attributes=["userAccountControl", "lockoutTime", "memberOf"],
         )
         for entry in conn.entries:
-            stats["admins"]["total"] += 1
-            stats["admins"]["disabled" if _is_account_disabled(entry) else "enabled"] += 1
+            member_of = entry.memberOf.values if "memberOf" in entry else []
+            bucket = "support_admins" if any("GG_SupportAdmins" in g for g in member_of) else "admins"
+
+            stats[bucket]["total"] += 1
+            stats[bucket]["disabled" if _is_account_disabled(entry) else "enabled"] += 1
             if _is_account_locked(entry):
-                stats["admins"]["locked"] += 1
+                stats[bucket]["locked"] += 1
 
         # OU=Employees — holds both GG_Employees and GG_Managers members
         conn.search(
@@ -199,9 +205,10 @@ def get_admin_dashboard_stats():
             if _is_account_locked(entry):
                 stats[bucket]["locked"] += 1
 
-        stats["total_users"] = sum(s["total"] for s in [stats["admins"], stats["managers"], stats["employees"]])
-        stats["total_disabled"] = sum(s["disabled"] for s in [stats["admins"], stats["managers"], stats["employees"]])
-        stats["total_locked"] = sum(s["locked"] for s in [stats["admins"], stats["managers"], stats["employees"]])
+        all_buckets = [stats["admins"], stats["support_admins"], stats["managers"], stats["employees"]]
+        stats["total_users"] = sum(s["total"] for s in all_buckets)
+        stats["total_disabled"] = sum(s["disabled"] for s in all_buckets)
+        stats["total_locked"] = sum(s["locked"] for s in all_buckets)
 
         return stats
     except Exception as e:
@@ -216,7 +223,7 @@ def list_all_ad_users(query=None):
         conn = get_connection()
         results = []
 
-        for ou_name, forced_role in [("Admins", "Admin"), ("Employees", None)]:
+        for ou_name, admin_tier in [("Admins", True), ("Employees", False)]:
             conn.search(
                 search_base=f"OU={ou_name},{settings.LDAP_BASE_DN}",
                 search_filter="(&(objectClass=user)(objectCategory=person))",
@@ -224,10 +231,10 @@ def list_all_ad_users(query=None):
                             "userAccountControl", "lockoutTime", "memberOf"],
             )
             for entry in conn.entries:
-                if forced_role:
-                    role = forced_role
+                member_of = entry.memberOf.values if "memberOf" in entry else []
+                if admin_tier:
+                    role = "Support Admin" if any("GG_SupportAdmins" in g for g in member_of) else "Admin"
                 else:
-                    member_of = entry.memberOf.values if "memberOf" in entry else []
                     role = "Manager" if any("GG_Managers" in g for g in member_of) else "Employee"
 
                 results.append({
@@ -307,6 +314,31 @@ def delete_ad_user(username):
         return {"success": True, "message": f"{username} deleted."}
     except Exception as e:
         return {"success": False, "message": str(e)}
+
+
+def set_password_expiration(username, expires_on, set_by=None):
+    """Set (or update) the date a user's password expires. Enforced at
+    login by accounts.views.login_view, since AD doesn't offer a plain
+    per-user expiration date without Fine-Grained Password Policies."""
+    try:
+        PasswordExpiration.objects.update_or_create(
+            username=username,
+            defaults={"expires_on": expires_on, "set_by": set_by},
+        )
+        return {"success": True, "message": f"Password for {username} will expire on {expires_on}."}
+    except Exception as e:
+        return {"success": False, "message": str(e)}
+
+
+def clear_password_expiration(username):
+    deleted, _ = PasswordExpiration.objects.filter(username=username).delete()
+    if deleted:
+        return {"success": True, "message": f"Password expiration cleared for {username}."}
+    return {"success": False, "message": f"No expiration was set for {username}."}
+
+
+def get_password_expiration(username):
+    return PasswordExpiration.objects.filter(username=username).first()
 
 
 def move_ad_user(username, new_ou):

@@ -5,7 +5,11 @@ from django.http import HttpResponseForbidden
 
 
 
-def role_required(required_role):
+def role_required(*required_roles):
+    # Accepts one or more roles, e.g. role_required("GG_Admins") or
+    # role_required("GG_Admins", "GG_SupportAdmins") for views shared
+    # across roles — access is granted if the session's ad_groups match
+    # ANY of the required roles.
 
     def decorator(view_func):
 
@@ -31,7 +35,7 @@ def role_required(required_role):
             for group in groups:
 
 
-                if required_role in group:
+                if any(required_role in group for required_role in required_roles):
 
                     role_found = True
                     break
