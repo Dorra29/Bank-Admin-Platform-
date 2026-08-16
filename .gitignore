@@ -1,0 +1,31 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# --- Virtual environment ---
+venv/
+env/
+.venv/
+
+# --- Django ---
+db.sqlite3
+db.sqlite3-journal
+media/
+staticfiles/
+*.log
+
+# --- Secrets / environment ---
+.env
+.env.*
+!.env.example
+
+# --- Editor / OS junk ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# --- Patch files left over from local edits (optional, remove if you want to keep them tracked) ---
+*.patch

@@ -11,21 +11,32 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import os
+
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load variables from a local .env file (git-ignored, never committed).
+load_dotenv(BASE_DIR / ".env")
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-foetam=38okkk^onbcjw9l*z08n!m7#s9zqqpqci7o13358p0q'
+# No real key is hardcoded here — set DJANGO_SECRET_KEY in your .env file.
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "insecure-dev-only-change-me")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get("DJANGO_DEBUG", "False") == "True"
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    h.strip()
+    for h in os.environ.get("DJANGO_ALLOWED_HOSTS", "").split(",")
+    if h.strip()
+]
 
 
 # Application definition
@@ -128,16 +139,18 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-LDAP_SERVER = "192.168.56.10"
-LDAP_PORT = 389
-LDAP_SSL_PORT = 636          # NEW — required for password writes (unicodePwd)
+# --- Active Directory / LDAP ---
+# All values below come from environment variables (see .env.example).
+# Nothing sensitive is hardcoded in this file anymore.
+LDAP_SERVER = os.environ.get("LDAP_SERVER")
+LDAP_PORT = int(os.environ.get("LDAP_PORT", 389))
+LDAP_SSL_PORT = int(os.environ.get("LDAP_SSL_PORT", 636))  # required for password writes (unicodePwd)
 
-LDAP_BASE_DN = "DC=bank,DC=local"
+LDAP_BASE_DN = os.environ.get("LDAP_BASE_DN")
+LDAP_USER_SEARCH_BASE = os.environ.get("LDAP_USER_SEARCH_BASE")
 
-LDAP_USER_SEARCH_BASE = "DC=bank,DC=local"
-
-LDAP_BIND_DN = "CN=Administrator,CN=Users,DC=bank,DC=local"
-LDAP_BIND_PASSWORD = "ITlab123"  # TODO before submission: move to an env var, don't commit this
+LDAP_BIND_DN = os.environ.get("LDAP_BIND_DN")
+LDAP_BIND_PASSWORD = os.environ.get("LDAP_BIND_PASSWORD")
 
 AUTHENTICATION_BACKENDS = [
     "accounts.backends.ActiveDirectoryBackend",
@@ -146,3 +159,33 @@ AUTHENTICATION_BACKENDS = [
 
 LOGIN_REDIRECT_URL = "/"
 LOGOUT_REDIRECT_URL = "/login/"
+
+
+# --- Logging ---
+# Replaces the print()-based debugging in accounts/backends.py, accounts/views.py,
+# and core/decorators.py. Logs go to the console; adjust the level per-app as needed.
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "INFO",
+    },
+    "loggers": {
+        "accounts": {
+            "handlers": ["console"],
+            "level": "DEBUG" if DEBUG else "INFO",
+            "propagate": False,
+        },
+        "core": {
+            "handlers": ["console"],
+            "level": "DEBUG" if DEBUG else "INFO",
+            "propagate": False,
+        },
+    },
+}
